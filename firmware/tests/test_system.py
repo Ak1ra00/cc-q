@@ -185,6 +185,19 @@ def test_upgrade_wrong_then_correct_pin():
          shown('WRONG PIN') and shown('12 attempts left'))
 
 
+def test_upgrade_ae_fail_is_not_a_wrong_pin():
+    # AE_FAIL twice (so pinattempt's one retry fails too) is no verdict on the
+    # PIN: it must not be called wrong, counted, or followed by an install
+    reset_all()
+    ckcc.reset(correct_pin=b'11-22', attempts_left=13, login_errors=(-106, -106))
+    quasar.keys_q[:] = key_pin('11', '22') + [ui.K_ENTER]     # dismiss PIN NOT CHECKED
+    system.login_and_upgrade(7)
+    check('AE_FAIL: not reported as a wrong PIN', not shown('WRONG PIN'))
+    check('AE_FAIL: reported as not checked, with the real count',
+         shown('PIN NOT CHECKED') and shown('13 attempts left'))
+    check('AE_FAIL: no upgrade was started', ckcc._state['upgrade_started'] is None)
+
+
 def test_upgrade_runs_out_of_attempts():
     reset_all()
     ckcc.reset(correct_pin=b'11-22', attempts_left=1)
@@ -237,7 +250,7 @@ def main():
     for fn in (test_check_header, test_decode_header, test_choose_file_and_stage,
               test_choose_file_rejects_bad_size, test_upgrade_blank_device,
               test_upgrade_correct_pin, test_upgrade_wrong_then_correct_pin,
-              test_upgrade_runs_out_of_attempts, test_low_battery_blocks_install,
+              test_upgrade_ae_fail_is_not_a_wrong_pin, test_upgrade_runs_out_of_attempts, test_low_battery_blocks_install,
               test_wrap_respects_width, test_menu_navigation, test_story_keys):
         try:
             fn()

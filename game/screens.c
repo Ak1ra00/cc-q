@@ -142,7 +142,9 @@ static void title_draw(void)
     text_center(70, "RIDE THE LIGHT  " G_DOT "  BREAK THE DARK", COL(200, 160, 255), 1, TX_SHADOW);
 
     for(int i = 0; i < M_COUNT; i++) {
-        draw_menu_item(98 + i * 18, TITLE_ITEMS[i], i == g_game.sel, title_item_enabled(i));
+        bool on = title_item_enabled(i);
+        const char *label = (i == M_PRACTICE && !on) ? "PRACTICE (CLEAR STAGE 1)" : TITLE_ITEMS[i];
+        draw_menu_item(98 + i * 18, label, i == g_game.sel, on);
     }
 
     strcpy(buf, "HI ");
@@ -228,6 +230,13 @@ static void panel(int x, int y, int w, int h, const char *title)
     }
 }
 
+static void panel_solid(int x, int y, int w, int h, const char *title)
+{
+    // over a frozen run: opaque, so the stage banner can't show through the menu
+    gfx_fill(x, y, w, h, COL(6, 8, 24));
+    panel(x, y, w, h, title);
+}
+
 static void options_draw(void)
 {
     static const char *const labels[O_COUNT] = { "DIFFICULTY", "SCREEN SHAKE", "BRIGHTNESS", "SHOW FPS", "SCREEN SYNC", "RESET SCORES", "BACK" };
@@ -261,7 +270,18 @@ static void options_draw(void)
             text_center_x(232, y, buf, vc, 1, 0);
         }
     }
-    text_center(SCR_H - 16, "SCREEN SYNC: PICK THE ONE WITH NO TEARING", C_DIM, 1, 0);
+    static const char *const hints[O_COUNT] = {
+        "HARDER: TOUGHER FOES, FASTER, DENSER FIRE",
+        "TURN IT OFF IF THE SHAKING BOTHERS YOU",
+        "LOWER LASTS LONGER ON BATTERY",
+        "SHOWS THE FRAME RATE WHILE YOU PLAY",
+        "PICK THE ONE WITH NO TEARING",
+        "CLEARS THE SCORE TABLE, NOTHING ELSE",
+        "CHANGES ARE SAVED AS YOU MAKE THEM",
+    };
+    const char *hint = (s_opt_sel == O_RESET && s_reset_confirm)
+                     ? "PRESS ENTER AGAIN TO CLEAR THE TABLE" : hints[s_opt_sel];
+    text_center(SCR_H - 16, hint, C_DIM, 1, 0);
 }
 
 // ------------------------------------------------------------------ scores
@@ -393,7 +413,7 @@ static void pause_draw(void)
 {
     char buf[24];
     gfx_fill_mode(0, 0, SCR_W, SCR_H, 0, DM_SHADOW);
-    panel(70, 70, 180, 100, "PAUSED");
+    panel_solid(70, 70, 180, 100, "PAUSED");
     draw_menu_item(96, "RESUME", s_pause_sel == 0, true);
     draw_menu_item(116, "QUIT TO TITLE", s_pause_sel == 1, true);
     strcpy(buf, "STAGE ");
@@ -426,7 +446,7 @@ static void confirm_update(void)
 static void confirm_draw(void)
 {
     gfx_fill_mode(0, 0, SCR_W, SCR_H, 0, DM_SHADOW);
-    panel(60, 80, 200, 80, "QUIT?");
+    panel_solid(60, 80, 200, 80, "QUIT?");
     text_center(100, "THE RUN ENDS HERE.", C_GREY, 1, 0);
     draw_menu_item(120, "YES, QUIT", g_game.confirm_sel == 0, true);
     draw_menu_item(138, "NO", g_game.confirm_sel == 1, true);

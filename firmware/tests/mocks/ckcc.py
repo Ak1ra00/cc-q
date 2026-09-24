@@ -1,6 +1,6 @@
 # Mock of the ckcc builtin module (bootloader call gate). Tests drive the PIN
-# state through set_pin_state(); gate() plays it back the way the real
-# bootloader answers pinattempt.py's roundtrip (see shared/pincodes.py).
+# state through reset(); gate() plays it back the way the real bootloader
+# answers pinattempt.py's roundtrip (see pins.c in the mk4 bootloader).
 import ustruct
 
 PIN_ATTEMPT_FMT = 'Ii32si6I32si32si32si72s32s'
@@ -9,11 +9,11 @@ _state = {}
 
 
 def reset(attempts_left=13, num_fails=0, is_blank=False, correct_pin=b'123456-789',
-          brick=False):
+          brick=False, login_errors=()):
     _state.clear()
     _state.update(attempts_left=attempts_left, num_fails=num_fails, is_blank=is_blank,
                   correct_pin=correct_pin, brick=brick, highwater=bytes(8),
-                  upgrade_started=None)
+                  upgrade_started=None, login_errors=list(login_errors))
 
 
 reset()
@@ -50,9 +50,18 @@ def gate(method_num, buf, arg2):
     if arg2 == 2:              # login
         if state_flags & 0x01:
             return -109        # EPIN_WRONG_SUCCESS, as pin_login_attempt() answers
-        ok = pin == _state['correct_pin']
-        flags = 0x01 if ok else 0     # PA_SUCCESSFUL
-        _write(buf, pin, _state['num_fails'], _state['attempts_left'], flags)
+        if _state['login_errors']:
+            return _state['login_errors'].pop(0)    # e.g. AE_FAIL: no verdict, nothing counted
+        if pin != _state['correct_pin']:
+            # the chip counts the failure itself, and the last one bricks it
+            _state['num_fails'] += 1
+            _state['attempts_left'] -= 1
+            if not _state['attempts_left']:
+                _state['brick'] = True
+            return -112        # EPIN_AUTH_FAIL
+        _state['num_fails'] = 0
+        _state['attempts_left'] = 13
+        _write(buf, pin, 0, 13, 0x01)     # PA_SUCCESSFUL
         return 0
 
     if arg2 == 7:              # firmware_upgrade

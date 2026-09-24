@@ -39,7 +39,8 @@ def flash_fs():
 def load():
     try:
         with open(SAVE_FILE, 'rb') as f:
-            quasar.load_blob(f.read())
+            # a real save is at most 256 bytes; a damaged file must not stop the boot
+            quasar.load_blob(f.read(1024))
     except OSError:
         pass            # first run: defaults
 

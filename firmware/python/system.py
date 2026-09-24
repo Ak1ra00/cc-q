@@ -298,6 +298,11 @@ def enter_pin(pa):
                 return None
 
 
+def err_code(exc):
+    # the bootloader's error number from a pinattempt error, if it has one
+    return exc.args[1] if len(exc.args) > 1 else None
+
+
 def locked_forever(num_fails):
     ui.story('I AM BRICK!', 'After %d failed PIN attempts this Coldcard is locked forever. '
              'By design, there is no way to reset or recover the secure element, and its '
@@ -337,23 +342,39 @@ def login_and_upgrade(length):
                     return
 
         ui.message('MAIN PIN', 'Checking...')
+        unchecked = None
         try:
             pa.setup(pin)
             ok = pa.login()
         except RuntimeError as exc:
-            # AUTH_FAIL when the PIN is just wrong
             ok = False
-            if len(exc.args) > 1 and exc.args[1] == pinattempt.EPIN_I_AM_BRICK:
+            if err_code(exc) == pinattempt.EPIN_I_AM_BRICK:
                 locked_forever(pa.num_fails)
                 return
+            if err_code(exc) != pinattempt.EPIN_AUTH_FAIL:
+                # No verdict on the PIN: the bootloader can answer AE_FAIL even
+                # after a correct one, so this must never read as a wrong PIN.
+                unchecked = exc.args[0]
         if ok:
             break
 
         pin = None
-        pa.num_fails += 1
-        pa.attempts_left -= 1
+        # the secure element keeps the real counters: read them back, don't guess
+        try:
+            pa.setup(b'')
+        except RuntimeError as exc:
+            if err_code(exc) == pinattempt.EPIN_I_AM_BRICK:
+                locked_forever(pa.num_fails + 1)
+            else:
+                ui.story('BOOTLOADER', 'Could not read the PIN counters: %s' % exc, warn=True)
+            return
         if not pa.attempts_left:
             locked_forever(pa.num_fails)
+            return
+        if unchecked:
+            ui.story('PIN NOT CHECKED', 'The bootloader stopped before giving an answer (%s), '
+                     'so this was not necessarily a wrong PIN. Nothing was installed.\n\n'
+                     '%d attempts left.' % (unchecked, pa.attempts_left), warn=True)
             return
         ui.story('WRONG PIN', '%d attempts left.\n\nPlease check all digits carefully, and '
                  'that the prefix versus suffix break point is correct.' % pa.attempts_left,
