@@ -77,6 +77,8 @@ def test_check_header():
 
     check('check_header: size mismatch rejected',
          system.check_header(hdr, 999) is not None)
+    check('check_header: file 128 bytes longer than the header says rejected',
+         system.check_header(hdr, 1128) is not None)
 
     wrong_hw = make_header(hw_compat=sigheader.MK_4_OK, size=1000)
     check('check_header: wrong hw_compat rejected',

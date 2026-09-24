@@ -50,7 +50,8 @@ void player_reset(bool new_game)
 
 bool player_can_be_hit(void)
 {
-    return g_pl.alive && !g_pl.entering && g_pl.invuln <= 0 && g_pl.bomb_timer <= 0;
+    // only while flying: not under GAME OVER after a quit, nor during the stage tally
+    return g_game.state == ST_PLAY && g_pl.alive && !g_pl.entering && g_pl.invuln <= 0 && g_pl.bomb_timer <= 0;
 }
 
 static pshot_t *pshot_new(int kind, float x, float y, float vx, float vy, float dmg)

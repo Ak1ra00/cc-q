@@ -58,7 +58,8 @@ def check_header(hdr, size):
         assert len(hdr) >= FW_HEADER_SIZE
         magic, ts, _v, _pk, fw_size, _fl, hw_compat = ustruct.unpack_from(FWH_PY_FORMAT, hdr)[0:7]
         assert magic == FW_HEADER_MAGIC, 'bad magic'
-        assert fw_size == size or fw_size == size - 128, 'size problem'
+        # stricter than stock: the bootloader refuses anything but an exact match, after the PIN
+        assert fw_size == size, 'size problem'
     except Exception as exc:
         return 'That does not look like a firmware file we would want to use: %s' % exc
 
@@ -259,7 +260,7 @@ def enter_pin(pa):
     while True:
         ui.clear()
         ui.title('MAIN PIN')
-        ui.center(50, 'The PIN you use with the official firmware.', ui.GREY)
+        ui.center(50, 'Your MAIN PIN. Never enter a trick PIN here.', ui.GREY)
         for i, label in enumerate(('PREFIX', 'SUFFIX')):
             x = 40 + i * 130
             live = (i == part)
@@ -313,13 +314,11 @@ def login_and_upgrade(length):
         ui.story('BOOTLOADER', 'Could not reach the bootloader: %s' % exc, warn=True)
         return
 
-    if pa.is_blank():
-        # no PIN has ever been set: the empty PIN is the main PIN
-        pin = b''
-    else:
-        pin = None
-
-    while True:
+    # A blank Coldcard (no PIN ever set) is already logged in by that setup(),
+    # as in the stock firmware; the bootloader refuses a login() on top of it
+    # (EPIN_WRONG_SUCCESS), so go straight to the upgrade.
+    pin = None
+    while not pa.is_blank():
         if pin is None:
             if not pa.attempts_left:
                 locked_forever(pa.num_fails)
@@ -349,10 +348,6 @@ def login_and_upgrade(length):
                 return
         if ok:
             break
-
-        if not pin:
-            ui.story('BOOTLOADER', 'The bootloader did not accept the login.', warn=True)
-            return
 
         pin = None
         pa.num_fails += 1

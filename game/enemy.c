@@ -509,6 +509,8 @@ static void b_darter(enemy_t *e)
             e->state = 1;
             float dy = g_pl.y - e->y;
             e->vy = fclampf(dy * 0.03f, -2.2f, 2.2f);
+            // HARD: some of them fire as they turn to dive
+            if(difficulty() == 2 && rnd(3) == 0) eshot_aimed(e->x, e->y, bullet_speed(2.6f), EB_S_ORNG, 0);
         }
     } else {
         e->vx -= 0.18f;
@@ -516,7 +518,6 @@ static void b_darter(enemy_t *e)
         e->vy *= 0.97f;
         e->x += e->vx;
         e->y += e->vy;
-        if(e->st == 0 && difficulty() == 2 && rnd(3) == 0) eshot_aimed(e->x, e->y, bullet_speed(2.6f), EB_S_ORNG, 0);
     }
 }
 

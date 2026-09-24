@@ -61,8 +61,11 @@ def key(timeout=-1):
 
 def flush():
     # wait for every key to be released, so a key still held from the
-    # previous screen (or from the game) is not taken as a new press
-    while quasar.keys():
+    # previous screen (or from the game) is not taken as a new press.
+    # Bounded: a stuck key must never lock up the way back to stock firmware.
+    import utime
+    t0 = utime.ticks_ms()
+    while quasar.keys() and utime.ticks_diff(utime.ticks_ms(), t0) < 1500:
         pass
     quasar.getkey(0)
 

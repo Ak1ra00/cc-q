@@ -42,12 +42,15 @@ def gate(method_num, buf, arg2):
     if arg2 == 0:             # setup
         flags = 0
         if _state['is_blank']:
-            flags |= 0x02     # PA_IS_BLANK
+            # like pin_setup_attempt(): a blank device is logged in already
+            flags |= 0x02 | 0x01     # PA_IS_BLANK | PA_SUCCESSFUL
         _write(buf, pin, _state['num_fails'], _state['attempts_left'], flags)
         return 0
 
     if arg2 == 2:              # login
-        ok = pin == _state['correct_pin'] or (_state['is_blank'] and pin == b'')
+        if state_flags & 0x01:
+            return -109        # EPIN_WRONG_SUCCESS, as pin_login_attempt() answers
+        ok = pin == _state['correct_pin']
         flags = 0x01 if ok else 0     # PA_SUCCESSFUL
         _write(buf, pin, _state['num_fails'], _state['attempts_left'], flags)
         return 0

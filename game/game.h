@@ -7,7 +7,7 @@
 #include "text.h"
 #include "assets_gen.h"
 
-#define QUASAR_VERSION  "1.0.0"
+#define QUASAR_VERSION  "1.0.1"
 #define FPS             30
 
 // ---------------------------------------------------------------- keys
@@ -353,6 +353,7 @@ void game_debug_start(int stage, int diff);
 
 void screens_update(void);
 void screens_draw(void);
+void screens_before_off(void);      // commit anything pending before power-off
 void title_bg_draw(void);
 
 // ---------------------------------------------------------------- platform

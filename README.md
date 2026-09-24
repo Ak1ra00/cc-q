@@ -20,12 +20,13 @@ collect power-ups for a spread shot, a laser, homing missiles, and a charged bea
 Nova bomb in reserve to clear the screen when things get dangerous.
 
 Full color, parallax starfields and nebulae, particle explosions, screen shake, and a chiptune-style
-palette running the LCD at its full refresh rate — all in C, compiled straight into the firmware as
+palette at 30 frames a second, synced to the LCD's refresh — all in C, compiled straight into the firmware as
 a MicroPython user module so it runs at native speed with nothing interpreted in the frame loop.
 
-**Controls:** arrow keys or WASD to move, ENTER to fire (hold to charge the beam), CANCEL for the
-Nova bomb, TAB to pause. The title screen also has a practice mode (jump straight to any stage), a
-high-score table, and an options screen (difficulty, screen shake, brightness, sync mode).
+**Controls:** arrow keys or WASD to move; the guns fire by themselves, hold ENTER to charge the
+beam; CANCEL for the Nova bomb; TAB or P to pause; hold POWER to save and switch off. The title
+screen also has a practice mode (jump straight to any stage you have reached), a high-score table,
+and an options screen (difficulty, screen shake, brightness, sync mode).
 
 ## Installing it
 
@@ -33,15 +34,15 @@ high-score table, and an options screen (difficulty, screen shake, brightness, s
 2. **Before you do anything else, put an official Coinkite firmware `.dfu` on a spare microSD card
    and set it aside.** That card is how you get back to a normal Coldcard. Get it from
    [coldcard.com/downloads](https://coldcard.com/downloads).
-3. Put `quasar-1.0.0-q1.dfu` on a microSD card, insert it, and use your Coldcard's own **Advanced →
+3. Put `quasar-1.0.1-q1.dfu` on a microSD card, insert it, and use your Coldcard's own **Advanced →
    Upgrade → From MicroSD** to install it, exactly as you would any firmware update.
 
 **Read [SECURITY.md](SECURITY.md) before you do this.** In short: this firmware is not signed by
-Coinkite (nobody outside Coinkite can sign firmware with their key), so the bootloader will show a
-warning on every boot and the device's genuine-firmware light will stay red the whole time you're
-running QUASAR. That is the bootloader working correctly, not a bug in this project, and it is why
-step 2 above matters — reinstalling the official firmware from that spare card is the only thing
-that turns the light green again.
+Coinkite (nobody outside Coinkite can sign firmware with their key), so on every boot the
+bootloader shows its unsigned-firmware warning for about 25 seconds before QUASAR starts. That is
+the bootloader working correctly, not a bug in this project. The way back is QUASAR's own
+**SYSTEM → INSTALL FIRMWARE** with the card from step 2 (hold **S** while switching on to go
+straight there), which is why that card matters.
 
 ## Building it from source
 
@@ -50,9 +51,12 @@ git clone https://github.com/Ak1ra00/cc-Q.git
 cd cc-Q
 git submodule update --init external/micropython
 pip install -r firmware/requirements.txt        # ecdsa, click — for signing
-# install the Arm GNU Toolchain (arm-none-eabi-gcc) and put it on PATH
+# install Arm GNU Toolchain 13.3.Rel1 (arm-none-eabi-gcc) and put it on PATH
 ./firmware/build.sh
 ```
+
+The release was built with exactly that toolchain version; another version still builds, but won't
+reproduce the published bytes (see [SECURITY.md](SECURITY.md) for how to compare).
 
 This builds MicroPython's `stm32` port with the QUASAR game compiled in as a user C module, signs
 the result with the public developer key (`firmware/keys/00.pem` — the same key anyone building
@@ -73,7 +77,7 @@ the hardware: `./firmware/tests/run.sh`.
 ## What's in here
 
 - `game/` — the game itself: portable C, no MicroPython or hardware dependencies.
-- `sim/` — a desktop build of the game (headless, for tests/screenshots, and an SDL2 player).
+- `sim/` — a headless desktop build of the game, for tests and screenshots.
 - `tools/` — the offline pipeline that generates `game/assets_gen.c` (sprites, backgrounds) and
   `game/font_gen.c` (the bitmap font) from source art, so nothing is drawn by hand at build time.
 - `firmware/COLDCARD_Q1/` — the board port: `modquasar.c` drives the LCD and keyboard and exposes
@@ -91,7 +95,7 @@ the hardware: `./firmware/tests/run.sh`.
 Built on [Coinkite](https://coinkite.com/)'s open-source
 [Coldcard firmware](https://github.com/Coldcard/firmware) and their fork of
 [MicroPython](https://github.com/Coldcard/micropython) — the board bring-up, bootloader protocol,
-and firmware-signing tools here are theirs; see [COPYING-CC](firmware/COPYING-CC) and the notice at
+and firmware-signing tools here are theirs; see [COPYING-CC](COPYING-CC) and the notice at
 the top of each file that keeps their copyright. QUASAR the game, and everything under `game/`,
 `sim/`, and `tools/`, is new for this project. See [LICENSE](LICENSE) for the terms.
 

@@ -409,6 +409,7 @@ static void boss_die_step(void)
 {
     boss_t *b = &g_boss;
     b->death_t++;
+    s_beam_t = 0;           // the Warden's cannon dies with it
     bg_set_speed(0.4f);
     if(b->death_t < 120) {
         if((b->death_t % 6) == 0) {

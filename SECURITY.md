@@ -25,34 +25,61 @@ project or anyone else's.** Nothing here misuses it, but that's a claim you shou
 by reading the code, not one you should take on faith from a README. If you want to try this on
 hardware that has ever held real funds, set a fresh PIN first, or better, use a spare Coldcard.
 
+**Only ever enter your main PIN on the INSTALL FIRMWARE screen, never a trick PIN.** Trick PINs
+keep doing whatever you set them up to do, and an install attempted after a trick-PIN login makes
+the bootloader wipe the seed (`pin_firmware_upgrade()` in Coinkite's
+`stm32/mk4-bootloader/pins.c`), exactly as it would under the official firmware.
+
 ## The bootloader warning is not a bug
 
 Coinkite's bootloader only trusts firmware signed with their own factory key, which nobody outside
 Coinkite can do. Every other build — this one included — has to be signed with the **public
 developer key** instead (`firmware/keys/00.pem`; its private half is committed on purpose, same as
 in Coinkite's own repository, because it is meant for exactly this: anyone building their own
-firmware signs with it). The bootloader recognizes that and, on every single boot, shows a forced
-warning screen for a few seconds and keeps the genuine-firmware light red for as long as this
-firmware is installed. That check runs from the bootloader's own code, before this firmware's code
-ever starts, so nothing in this repository can change, skip, or theme it. It's the honest price of
-running something Coinkite didn't build, and it's exactly why you should keep an official firmware
-`.dfu` on a spare microSD card before you install this (see the README).
+firmware signs with it). The bootloader recognizes that and, on every single boot, shows its
+unsigned-firmware warning with a progress bar for about 25 seconds (100 × 250 ms in
+`warn_fishy_firmware()`, `stm32/mk4-bootloader/verify.c`) before QUASAR starts. That check runs
+from the bootloader's own code, before this firmware's code ever starts, so nothing in this
+repository can change, skip, or theme it. It's the honest price of running something Coinkite
+didn't build.
+
+About the genuine-firmware light: per the same bootloader source, it reflects whether the flash
+still matches the image you last approved with your PIN, not who signed it. An install through
+the normal PIN-checked upgrade records QUASAR's checksum in the secure element, so the light may
+well be green while QUASAR runs; the 25-second warning is what marks it as unofficial. A red light
+means the flash changed outside such an install.
+
+Keep an official firmware `.dfu` on a spare microSD card before you install this (see the README).
+Two things the bootloader source makes worth knowing:
+
+- Its microSD **recovery mode** only starts when the firmware in flash is corrupt or missing, and
+  it only accepts the exact image you were installing. If power is lost in the middle of an
+  install, put that same `.dfu` on the card.
+- A firmware that is validly signed but fails early would not trigger recovery at all. That is why
+  QUASAR brings the display up first and checks for **S** held at power-on before it touches
+  anything else: SYSTEM → INSTALL FIRMWARE has to stay reachable.
 
 ## Verifying what you're installing
 
 The `.dfu` in [`release/`](release/) is built by [`firmware/build.sh`](firmware/build.sh) from
-exactly the source in this repository — nothing else goes into it. To check that for yourself:
+exactly the source in this repository — nothing else goes into it. To check that for yourself,
+build it with the same toolchain (Arm GNU Toolchain 13.3.Rel1) and compare:
 
 ```
 git clone https://github.com/Ak1ra00/cc-Q.git && cd cc-Q
 git submodule update --init external/micropython
+cp release/quasar-*.dfu /tmp/published.dfu
 ./firmware/build.sh
-sha256sum release/quasar-*.dfu
+python3 firmware/tools/check-repro.py release/quasar-*.dfu /tmp/published.dfu
 ```
 
-`firmware/build.sh sign` prints the header it embeds (version, timestamp, the hardware it's marked
-compatible with) and verifies the signature it just made before writing the `.dfu`, so a corrupted
-or mismatched build fails loudly there rather than silently on the device.
+The two files will not have the same `sha256sum`: each signing stamps the current time into the
+firmware header and makes a fresh ECDSA signature. `check-repro.py` compares every other byte of
+the firmware, the same way Coinkite's own `make check-repro` sets the header aside.
+
+The sign step of `build.sh` prints the header it embeds (version, timestamp, the hardware it's
+marked compatible with) and verifies the signature it just made before writing the `.dfu`, so a
+corrupted or mismatched build fails loudly there rather than silently on the device.
 
 ## Reporting an issue
 

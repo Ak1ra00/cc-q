@@ -41,7 +41,8 @@ void input_update(uint64_t raw)
         if(raw & KEYBIT(K_L)) b |= B_B;
         if(raw & (KEYBIT(K_P) | KEYBIT(K_TAB) | KEYBIT(K_QR) | KEYBIT(K_NFC))) b |= B_PAUSE;
     } else {
-        if(raw & (KEYBIT(K_TAB) | KEYBIT(K_QR) | KEYBIT(K_NFC))) b |= B_PAUSE;
+        // P too, so the key that paused also resumes
+        if(raw & (KEYBIT(K_P) | KEYBIT(K_TAB) | KEYBIT(K_QR) | KEYBIT(K_NFC))) b |= B_PAUSE;
     }
     if(raw & (KEYBIT(K_ENTER) | KEYBIT(K_SPACE))) b |= B_A;
     if(raw & (KEYBIT(K_CANCEL) | KEYBIT(K_DEL))) b |= B_B;

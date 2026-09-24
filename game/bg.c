@@ -197,6 +197,7 @@ void bg_update(void)
         else if(rndfx(240) == 0) {
             s_lightning = 8;
             s_bolt_x = 60 + rndfx(200);
+            fx_flash(COL(90, 40, 90), 5);
         }
     }
 }
@@ -415,7 +416,6 @@ void bg_draw(void)
                     x = nx;
                     y = ny;
                 }
-                if(s_lightning > 6) fx_flash(COL(90, 40, 90), 4);
             }
             break;
         case 3:

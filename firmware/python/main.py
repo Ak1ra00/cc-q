@@ -102,6 +102,7 @@ def crashed(exc):
     while True:
         try:
             quasar.fast(False)
+            quasar.init(qhw.display_setup())     # in case we failed before it ran
             k = ui.story('SOMETHING WENT WRONG',
                          '\n'.join(ln.strip()[:ui.COLS] for ln in lines[-6:]),
                          'ENTER: RESTART    S: SYSTEM', warn=True, keys=(ui.K_ENTER, ui.K_S))
@@ -118,12 +119,16 @@ def crashed(exc):
 
 
 def main():
-    flash_fs()
+    # Display first, so any later failure can still be shown (see crashed()),
+    # and the S check before /flash is touched: the bootloader has no recovery
+    # for firmware that is validly signed but fails early, so SYSTEM has to stay
+    # reachable even with a damaged filesystem.
     quasar.init(qhw.display_setup())
-    load()
-    apply_settings()
     if quasar.held(K_S):
         system_screens()
+    flash_fs()
+    load()
+    apply_settings()
     play()
 
 

@@ -98,7 +98,8 @@ static inline uint16_t c565_mix(uint16_t fg, uint16_t bg, int alpha32)
 {
     uint32_t f = ((uint32_t)fg | ((uint32_t)fg << 16)) & 0x07e0f81f;
     uint32_t b = ((uint32_t)bg | ((uint32_t)bg << 16)) & 0x07e0f81f;
-    b += ((f - b) * (uint32_t)alpha32 >> 5) & 0x07e0f81f;
+    // mask only after adding bg back: per-channel borrows from (f - b) must cancel first
+    b = ((((f - b) * (uint32_t)alpha32) >> 5) + b) & 0x07e0f81f;
     return (uint16_t)(b | (b >> 16));
 }
 

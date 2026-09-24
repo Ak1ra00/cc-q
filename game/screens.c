@@ -170,6 +170,7 @@ static void options_update(void)
     if((g_in.pressed & B_A) && s_opt_sel != O_RESET && s_opt_sel != O_BACK) d = 1;
 
     if(d) {
+        savedata_t was = g_save;
         switch(s_opt_sel) {
             case O_DIFF:
                 g_save.difficulty = (uint8_t)((g_save.difficulty + 3 + d) % 3);
@@ -179,7 +180,7 @@ static void options_update(void)
                 break;
             case O_BRIGHT:
                 g_save.brightness = (uint8_t)iclamp(g_save.brightness + d, 0, 4);
-                g_events |= EV_BRIGHT;
+                if(g_save.brightness != was.brightness) g_events |= EV_BRIGHT;
                 break;
             case O_FPS:
                 g_save.show_fps = (uint8_t)!g_save.show_fps;
@@ -191,18 +192,17 @@ static void options_update(void)
             default:
                 break;
         }
-        if(s_opt_sel <= O_SYNC) g_events |= EV_SAVE;
+        // each save rewrites /flash, so skip it when holding a key at a limit
+        if(memcmp(&was, &g_save, sizeof(was))) g_events |= EV_SAVE;
     }
     if(g_in.pressed & B_A) {
         if(s_opt_sel == O_RESET) {
             if(++s_reset_confirm >= 2) {
-                uint8_t keep[8] = { g_save.difficulty, g_save.shake, g_save.brightness, g_save.show_fps, g_save.vsync };
+                // just the table: settings and practice progress stay
+                savedata_t keep = g_save;
                 save_defaults();
-                g_save.difficulty = keep[0];
-                g_save.shake = keep[1];
-                g_save.brightness = keep[2];
-                g_save.show_fps = keep[3];
-                g_save.vsync = keep[4];
+                memcpy(keep.scores, g_save.scores, sizeof(keep.scores));
+                g_save = keep;
                 s_reset_confirm = 0;
                 g_events |= EV_SAVE;
                 fx_flash(C_RED, 6);
@@ -436,6 +436,11 @@ static void confirm_draw(void)
 
 static void stageclear_enter(void)
 {
+    // nothing left alive or in flight during the tally
+    for(int i = 0; i < MAX_ENEMIES; i++) {
+        if(g_en[i].alive) enemy_kill(&g_en[i], false);
+    }
+    eshots_cancel(false);
     s_clear_step = 0;
     int pct = g_stage.spawned ? (g_stage.kills * 100) / g_stage.spawned : 100;
     if(pct > 100) pct = 100;
@@ -527,9 +532,12 @@ static void gameover_update(void)
         s_cont_t = can_continue ? 10 * 30 : -1;
     }
 
+    // keys still being mashed from the fight must not pick for the player
+    bool ready = g_game.t > 20;
+
     if(s_cont_t > 0) {
         s_cont_t--;
-        if(g_in.pressed & B_A) {
+        if(ready && (g_in.pressed & B_A)) {
             // continue: score resets, progress kept
             uint32_t best = g_run.score;
             if(score_rank(best) >= 0 && best > 0) {
@@ -546,9 +554,9 @@ static void gameover_update(void)
             game_set_state(ST_PLAY);
             return;
         }
-        if(g_in.pressed & B_B) s_cont_t = 0;
+        if(ready && (g_in.pressed & B_B)) s_cont_t = 0;
         if(s_cont_t == 0) finish_run();
-    } else if(g_game.t > 90 || (g_game.t > 20 && (g_in.pressed & (B_A | B_B)))) {
+    } else if(g_game.t > 90 || (ready && (g_in.pressed & (B_A | B_B)))) {
         finish_run();
     }
 }
@@ -568,6 +576,18 @@ static void gameover_draw(void)
 
 // ------------------------------------------------------------------ name entry
 
+static void name_commit(void)
+{
+    const char *nm = g_game.name_len ? g_game.name : "PILOT";
+    score_insert(g_game.name_rank, nm, g_run.score, g_run.frames ? g_stage.num : 1, difficulty());
+    if(g_game.prev == ST_ENDING || g_game.prev == ST_CREDITS) {
+        // stage reached shows ALL for a full clear
+        g_save.scores[g_game.name_rank].stage = 6;
+    }
+    g_events |= EV_SAVE;
+    game_set_state(ST_SCORES);
+}
+
 static void name_update(void)
 {
     // letters come straight from the Q keyboard
@@ -583,16 +603,14 @@ static void name_update(void)
     if((g_in.raw_pressed & KEYBIT(K_DEL)) && g_game.name_len > 0) {
         g_game.name[--g_game.name_len] = 0;
     }
-    if(g_in.raw_pressed & KEYBIT(K_ENTER)) {
-        const char *nm = g_game.name_len ? g_game.name : "PILOT";
-        score_insert(g_game.name_rank, nm, g_run.score, g_run.frames ? g_stage.num : 1, difficulty());
-        if(g_game.prev == ST_ENDING || g_game.prev == ST_CREDITS) {
-            // stage reached shows ALL for a full clear
-            g_save.scores[g_game.name_rank].stage = 6;
-        }
-        g_events |= EV_SAVE;
-        game_set_state(ST_SCORES);
-    }
+    // half a second before ENTER counts, so tapping through GAME OVER can't skip this
+    if((g_in.raw_pressed & KEYBIT(K_ENTER)) && g_game.t > 15) name_commit();
+}
+
+void screens_before_off(void)
+{
+    // switching off (held POWER, or idle) must not lose a new high score
+    if(g_game.state == ST_NAME) name_commit();
 }
 
 static void name_draw(void)
@@ -740,7 +758,10 @@ void screens_draw(void)
 void screens_enter(int st)
 {
     if(st == ST_STAGECLEAR) stageclear_enter();
-    if(st == ST_PAUSE) s_pause_sel = 0;
+    if(st == ST_PAUSE) {
+        s_pause_sel = 0;
+        fx_flash(0, 0);         // a flash would otherwise stay frozen over the pause menu
+    }
     if(st == ST_TITLE) {
         s_idle = 0;
         bg_init(0);

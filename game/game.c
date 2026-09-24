@@ -163,7 +163,10 @@ uint32_t game_frame(uint64_t keys)
 
     // power key: tap pauses, hold switches off
     if(g_in.power_hold == 1 && g_game.state == ST_PLAY) game_set_state(ST_PAUSE);
-    if(g_in.power_hold == 40) g_events |= EV_POWEROFF | EV_SAVE;
+    if(g_in.power_hold == 40) {
+        screens_before_off();
+        g_events |= EV_POWEROFF | EV_SAVE;
+    }
 
     switch(g_game.state) {
         case ST_PLAY:
@@ -188,6 +191,7 @@ uint32_t game_frame(uint64_t keys)
             pickups_update();
             fx_update();
             player_update();
+            pshots_update();
             screens_update();
             break;
         case ST_PAUSE:
@@ -208,6 +212,9 @@ uint32_t game_frame(uint64_t keys)
         screens_draw();
         fx_draw_top();
     }
+
+    // the host switches off after this frame: keep a pending high score
+    if(game_wants_idle_off()) screens_before_off();
 
     // frame rate, averaged over 8 frames
     uint32_t now = plat_millis();

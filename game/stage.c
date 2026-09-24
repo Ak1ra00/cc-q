@@ -207,9 +207,12 @@ static void spawn_wave(const wave_t *w)
                 e->p[0] = 25;
             }
             break;
-        case W_FIGHTERS:
+        case W_FIGHTERS: {
+            // close up the formation only if it would not fit on screen (big HARD waves)
+            int sp = 34;
+            while(sp > 16 && (w->y - ((n - 1) / 2) * sp < 22 || w->y + ((n - 1) - (n - 1) / 2) * sp > 226)) sp -= 2;
             for(int i = 0; i < n; i++) {
-                float y = (float)w->y + (float)((i - (n - 1) / 2) * 34);
+                float y = (float)w->y + (float)((i - (n - 1) / 2) * sp);
                 enemy_t *e = enemy_spawn(E_FIGHTER, (float)(SCR_W + 20 + i * 14), y);
                 if(!e) break;
                 e->p[0] = (float)(220 - (i % 2) * 40);
@@ -217,6 +220,7 @@ static void spawn_wave(const wave_t *w)
                 e->p[2] = y < 120 ? -1.0f : 1.0f;
             }
             break;
+        }
         case W_POD: {
             enemy_t *e = enemy_spawn(E_POD, SCR_W + 20, (float)w->y);
             if(e) {
