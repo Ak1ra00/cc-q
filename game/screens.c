@@ -6,8 +6,8 @@ static const char *const DIFF_NAMES[3] = { "EASY", "NORMAL", "HARD" };
 static const px_t DIFF_COLS[3] = { COL(120, 255, 160), COL(120, 220, 255), COL(255, 100, 100) };
 
 // menu model for the title screen
-enum { M_START, M_PRACTICE, M_SCORES, M_OPTIONS, M_HOWTO, M_SYSTEM, M_COUNT };
-static const char *const TITLE_ITEMS[M_COUNT] = { "START GAME", "PRACTICE", "HIGH SCORES", "OPTIONS", "HOW TO PLAY", "SYSTEM" };
+enum { M_CONTINUE, M_START, M_PRACTICE, M_SCORES, M_OPTIONS, M_HOWTO, M_SYSTEM, M_COUNT };
+static const char *const TITLE_ITEMS[M_COUNT] = { "CONTINUE", "START GAME", "PRACTICE", "HIGH SCORES", "OPTIONS", "HOW TO PLAY", "SYSTEM" };
 
 static int s_clear_step;
 static uint32_t s_clear_bonus[4];
@@ -21,13 +21,30 @@ static bool s_quit;
 
 static bool title_item_enabled(int i)
 {
+    if(i == M_CONTINUE) return g_save.run.stage != 0;
     if(i == M_PRACTICE) return g_save.max_stage > 1;
     return true;
+}
+
+static void title_sel_fix(void)
+{
+    // START GAME is always enabled, so this ends
+    while(!title_item_enabled(g_game.sel)) g_game.sel = (g_game.sel + 1) % M_COUNT;
+}
+
+void screens_save_loaded(void)
+{
+    // the title was set up before the save arrived: start it on CONTINUE if there is a run
+    if(g_game.state == ST_TITLE) {
+        g_game.sel = 0;
+        title_sel_fix();
+    }
 }
 
 void game_start_run(int stage, bool practice)
 {
     memset(&g_run, 0, sizeof(g_run));
+    g_run.diff = g_save.difficulty > 2 ? 1 : g_save.difficulty;
     g_run.mult = 1;
     g_run.hiscore = g_save.scores[0].score;
     g_run.practice = practice;
@@ -39,6 +56,32 @@ void game_start_run(int stage, bool practice)
         g_save.plays++;
         g_events |= EV_SAVE;
     }
+    game_set_state(ST_PLAY);
+}
+
+static void game_resume_run(void)
+{
+    // CONTINUE: back to the start of the saved stage, with the run as it stood there
+    const savedrun_t r = g_save.run;
+    memset(&g_run, 0, sizeof(g_run));
+    g_run.diff = r.diff;
+    g_run.score = r.score;
+    g_run.hiscore = g_save.scores[0].score > r.score ? g_save.scores[0].score : r.score;
+    g_run.mult = 1;
+    g_run.continues = r.continues;
+    g_run.next_life = r.next_life;
+    g_run.start_stage = 1;
+    g_run.frames = r.frames;
+    g_run.gems = (int)r.gems;
+    g_run.best_chain = (int)r.best_chain;
+    player_reset(true);
+    g_pl.lives = r.lives;
+    g_pl.maxhp = r.maxhp;
+    g_pl.main_lvl = r.main_lvl;
+    g_pl.sub = r.sub;
+    g_pl.sub_lvl = r.sub_lvl;
+    g_pl.options = r.options;
+    stage_start(r.stage);
     game_set_state(ST_PLAY);
 }
 
@@ -93,6 +136,7 @@ static void battery_draw(int x, int y)
 
 static void title_update(void)
 {
+    title_sel_fix();
     if(g_in.menu & B_UP) {
         do { g_game.sel = (g_game.sel + M_COUNT - 1) % M_COUNT; } while(!title_item_enabled(g_game.sel));
     }
@@ -104,8 +148,16 @@ static void title_update(void)
 
     if(g_in.pressed & B_A) {
         switch(g_game.sel) {
+            case M_CONTINUE:
+                game_resume_run();
+                break;
             case M_START:
-                game_start_run(1, false);
+                if(g_save.run.stage) {
+                    g_game.confirm_sel = 1;
+                    game_set_state(ST_CONFIRM_NEW);
+                } else {
+                    game_start_run(1, false);
+                }
                 break;
             case M_PRACTICE:
                 s_practice_sel = 0;
@@ -143,8 +195,16 @@ static void title_draw(void)
 
     for(int i = 0; i < M_COUNT; i++) {
         bool on = title_item_enabled(i);
-        const char *label = (i == M_PRACTICE && !on) ? "PRACTICE (CLEAR STAGE 1)" : TITLE_ITEMS[i];
-        draw_menu_item(98 + i * 18, label, i == g_game.sel, on);
+        const char *label = TITLE_ITEMS[i];
+        char cont[24];
+        if(i == M_CONTINUE && on) {
+            strcpy(cont, "CONTINUE (STAGE ");
+            fmt_int(cont + strlen(cont), g_save.run.stage);
+            str_cat(cont, ")");
+            label = cont;
+        }
+        if(i == M_PRACTICE && !on) label = "PRACTICE (CLEAR STAGE 1)";
+        draw_menu_item(92 + i * 18, label, i == g_game.sel, on);
     }
 
     strcpy(buf, "HI ");
@@ -160,7 +220,7 @@ static void title_draw(void)
 
 // ------------------------------------------------------------------ options
 
-enum { O_DIFF, O_SHAKE, O_BRIGHT, O_FPS, O_SYNC, O_RESET, O_BACK, O_COUNT };
+enum { O_DIFF, O_SHAKE, O_BRIGHT, O_FPS, O_SYNC, O_AUTOOFF, O_RESET, O_BACK, O_COUNT };
 
 static void options_update(void)
 {
@@ -190,6 +250,9 @@ static void options_update(void)
             case O_SYNC:
                 g_save.vsync = (uint8_t)((g_save.vsync + 3 + d) % 3);
                 g_events |= EV_VSYNC;
+                break;
+            case O_AUTOOFF:
+                g_save.auto_off = (uint8_t)((g_save.auto_off + 3 + d) % 3);
                 break;
             default:
                 break;
@@ -239,8 +302,9 @@ static void panel_solid(int x, int y, int w, int h, const char *title)
 
 static void options_draw(void)
 {
-    static const char *const labels[O_COUNT] = { "DIFFICULTY", "SCREEN SHAKE", "BRIGHTNESS", "SHOW FPS", "SCREEN SYNC", "RESET SCORES", "BACK" };
+    static const char *const labels[O_COUNT] = { "DIFFICULTY", "SCREEN SHAKE", "BRIGHTNESS", "SHOW FPS", "SCREEN SYNC", "AUTO OFF", "RESET SCORES", "BACK" };
     static const char *const sync_names[3] = { "L " G_RIGHT " R", "R " G_RIGHT " L", "OFF" };
+    static const char *const off_names[3] = { "10 MIN", "30 MIN", "NEVER" };
     title_bg_draw();
     panel(30, 30, 260, 186, "OPTIONS");
     for(int i = 0; i < O_COUNT; i++) {
@@ -255,6 +319,7 @@ static void options_draw(void)
             case O_SHAKE:  strcpy(buf, g_save.shake ? "ON" : "OFF"); break;
             case O_FPS:    strcpy(buf, g_save.show_fps ? "ON" : "OFF"); break;
             case O_SYNC:   strcpy(buf, sync_names[g_save.vsync % 3]); break;
+            case O_AUTOOFF: strcpy(buf, off_names[g_save.auto_off % 3]); break;
             case O_RESET:  strcpy(buf, s_reset_confirm ? "SURE? ENTER" : ""); vc = C_RED; break;
             default: break;
         }
@@ -276,6 +341,7 @@ static void options_draw(void)
         "LOWER LASTS LONGER ON BATTERY",
         "SHOWS THE FRAME RATE WHILE YOU PLAY",
         "PICK THE ONE WITH NO TEARING",
+        "IDLE TIME ON A MENU BEFORE SWITCHING OFF",
         "CLEARS THE SCORE TABLE, NOTHING ELSE",
         "CHANGES ARE SAVED AS YOU MAKE THEM",
     };
@@ -389,9 +455,23 @@ static void practice_draw(void)
 
 // ------------------------------------------------------------------ pause
 
+enum { P_RESUME, P_SAVEQUIT, P_QUIT, P_COUNT };
+
+static bool pause_item_enabled(int i)
+{
+    // SAVE AND QUIT only when this very stage is what CONTINUE would pick up
+    if(i == P_SAVEQUIT) return !g_run.practice && g_save.run.stage == g_stage.num;
+    return true;
+}
+
 static void pause_update(void)
 {
-    if(g_in.menu & (B_UP | B_DOWN)) s_pause_sel ^= 1;
+    if(g_in.menu & B_UP) {
+        do { s_pause_sel = (s_pause_sel + P_COUNT - 1) % P_COUNT; } while(!pause_item_enabled(s_pause_sel));
+    }
+    if(g_in.menu & B_DOWN) {
+        do { s_pause_sel = (s_pause_sel + 1) % P_COUNT; } while(!pause_item_enabled(s_pause_sel));
+    }
     if(g_in.pressed & B_PAUSE) {
         game_set_state(ST_PLAY);
         return;
@@ -401,8 +481,11 @@ static void pause_update(void)
         return;
     }
     if(g_in.pressed & B_A) {
-        if(s_pause_sel == 0) game_set_state(ST_PLAY);
-        else {
+        if(s_pause_sel == P_RESUME) {
+            game_set_state(ST_PLAY);
+        } else if(s_pause_sel == P_SAVEQUIT) {
+            game_set_state(ST_TITLE);       // the run stays saved: CONTINUE picks it up
+        } else {
             g_game.confirm_sel = 1;
             game_set_state(ST_CONFIRM_QUIT);
         }
@@ -413,9 +496,14 @@ static void pause_draw(void)
 {
     char buf[24];
     gfx_fill_mode(0, 0, SCR_W, SCR_H, 0, DM_SHADOW);
-    panel_solid(70, 70, 180, 100, "PAUSED");
-    draw_menu_item(96, "RESUME", s_pause_sel == 0, true);
-    draw_menu_item(116, "QUIT TO TITLE", s_pause_sel == 1, true);
+    static const char *const items[P_COUNT] = { "RESUME", "SAVE AND QUIT", "QUIT TO TITLE" };
+    panel_solid(70, 64, 180, 110, "PAUSED");
+    int y = 86;
+    for(int i = 0; i < P_COUNT; i++) {
+        if(!pause_item_enabled(i)) continue;
+        draw_menu_item(y, items[i], s_pause_sel == i, true);
+        y += 18;
+    }
     strcpy(buf, "STAGE ");
     fmt_int(buf + 6, g_stage.num);
     str_cat(buf, "  ");
@@ -450,6 +538,36 @@ static void confirm_draw(void)
     text_center(100, "THE RUN ENDS HERE.", C_GREY, 1, 0);
     draw_menu_item(120, "YES, QUIT", g_game.confirm_sel == 0, true);
     draw_menu_item(138, "NO", g_game.confirm_sel == 1, true);
+}
+
+static void confirm_new_update(void)
+{
+    if(g_in.menu & (B_UP | B_DOWN | B_LEFT | B_RIGHT)) g_game.confirm_sel ^= 1;
+    if(g_in.pressed & B_B) {
+        game_set_state(ST_TITLE);
+        return;
+    }
+    if(g_in.pressed & B_A) {
+        if(g_game.confirm_sel == 0) {
+            run_checkpoint_clear();
+            game_start_run(1, false);
+        } else {
+            game_set_state(ST_TITLE);
+        }
+    }
+}
+
+static void confirm_new_draw(void)
+{
+    char buf[32];
+    title_bg_draw();
+    panel_solid(50, 80, 220, 94, "NEW GAME?");
+    strcpy(buf, "YOUR SAVED RUN AT STAGE ");
+    fmt_int(buf + strlen(buf), g_save.run.stage);
+    text_center(100, buf, C_GREY, 1, 0);
+    text_center(112, "WILL BE LOST.", C_GREY, 1, 0);
+    draw_menu_item(134, "YES, START OVER", g_game.confirm_sel == 0, true);
+    draw_menu_item(152, "NO", g_game.confirm_sel == 1, true);
 }
 
 // ------------------------------------------------------------------ stage clear
@@ -530,8 +648,9 @@ static void stageclear_draw(void)
 
 static void finish_run(void)
 {
-    // offer the score table, then back to the title
+    // the run is over: nothing left to continue; offer the score table, then the title
     if(!g_run.practice) {
+        run_checkpoint_clear();
         int r = score_rank(g_run.score);
         if(r >= 0 && g_run.score > 0) {
             g_game.name_rank = r;
@@ -571,6 +690,8 @@ static void gameover_update(void)
             g_run.chain = 0;
             player_reset(true);
             g_pl.main_lvl = 2;
+            // the saved run follows the continue, rather than undoing it
+            if(!g_run.practice && g_stage.num >= 2) run_checkpoint();
             game_set_state(ST_PLAY);
             return;
         }
@@ -676,6 +797,7 @@ static void ending_update(void)
         if(!g_run.practice) {
             g_save.clears++;
             g_save.max_stage = 5;
+            run_checkpoint_clear();
             g_events |= EV_SAVE;
         }
     }
@@ -747,6 +869,7 @@ void screens_update(void)
         case ST_PRACTICE:   practice_update(); break;
         case ST_PAUSE:      pause_update(); break;
         case ST_CONFIRM_QUIT: confirm_update(); break;
+        case ST_CONFIRM_NEW: confirm_new_update(); break;
         case ST_STAGECLEAR: stageclear_update(); break;
         case ST_GAMEOVER:   gameover_update(); break;
         case ST_NAME:       name_update(); break;
@@ -766,6 +889,7 @@ void screens_draw(void)
         case ST_PRACTICE:   practice_draw(); break;
         case ST_PAUSE:      pause_draw(); break;
         case ST_CONFIRM_QUIT: confirm_draw(); break;
+        case ST_CONFIRM_NEW: confirm_new_draw(); break;
         case ST_STAGECLEAR: stageclear_draw(); break;
         case ST_GAMEOVER:   gameover_draw(); break;
         case ST_NAME:       name_draw(); break;
@@ -785,7 +909,7 @@ void screens_enter(int st)
     if(st == ST_TITLE) {
         s_idle = 0;
         bg_init(0);
-        if(!title_item_enabled(g_game.sel)) g_game.sel = 0;
+        title_sel_fix();
     }
     if(st == ST_ENDING || st == ST_CREDITS) bg_init(0);
     if(st == ST_GAMEOVER) {

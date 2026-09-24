@@ -1,4 +1,4 @@
-// QUASAR - persistent settings and the high score table.
+// QUASAR - persistent settings, the high score table and the saved run.
 //
 // Serialised as a small versioned blob with a CRC. The host stores it; if it is
 // ever damaged we simply fall back to defaults.
@@ -54,13 +54,67 @@ static uint32_t get32(const uint8_t *p)
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
 
-// layout: magic(4) version(1) len(1) settings(8) plays(4) scores(8 x 18) crc(4)
+// layout: magic(4) version(1) len(1) settings(8) plays(4) scores(8 x 18) crc(4),
+// then the saved run as a block of its own: magic(4) len(1) fields crc(4).
+// Version 1.1.0 and older read the first part and ignore the rest, so a save
+// works in both directions.
 #define REC_LEN     (NAME_LEN + 2 + 4 + 2)      // name, stage, diff, score, pad
 #define BODY_LEN    (4 + 1 + 1 + 8 + 4 + NUM_SCORES * REC_LEN)
+#define RUN_MAGIC   0x31585351u     // "QSX1"
+#define RUN_LEN     (4 + 1 + 9 + 5 * 4)
+#define TOTAL_LEN   (BODY_LEN + 4 + RUN_LEN + 4)
+
+static uint8_t *pack_run(uint8_t *p)
+{
+    const savedrun_t *r = &g_save.run;
+    uint8_t *start = p;
+    put32(p, RUN_MAGIC);
+    p += 4;
+    *p++ = RUN_LEN;
+    *p++ = r->stage;
+    *p++ = r->diff;
+    *p++ = r->lives;
+    *p++ = r->maxhp;
+    *p++ = r->main_lvl;
+    *p++ = r->sub;
+    *p++ = r->sub_lvl;
+    *p++ = r->options;
+    *p++ = r->continues;
+    const uint32_t v[5] = { r->score, r->next_life, r->frames, r->gems, r->best_chain };
+    for(int i = 0; i < 5; i++, p += 4) put32(p, v[i]);
+    put32(p, crc32(start, RUN_LEN));
+    return p + 4;
+}
+
+static void unpack_run(const uint8_t *p, savedrun_t *out)
+{
+    savedrun_t r;
+    r.stage = p[0];
+    r.diff = p[1];
+    r.lives = p[2];
+    r.maxhp = p[3];
+    r.main_lvl = p[4];
+    r.sub = p[5];
+    r.sub_lvl = p[6];
+    r.options = p[7];
+    r.continues = p[8];
+    r.score = get32(p + 9);
+    r.next_life = get32(p + 13);
+    r.frames = get32(p + 17);
+    r.gems = get32(p + 21);
+    r.best_chain = get32(p + 25);
+    // anything out of range means no run to continue, never a strange one
+    if(r.stage < 2 || r.stage > 5 || r.diff > 2 || r.lives > 99 || r.maxhp < 1 || r.maxhp > 9 ||
+       r.main_lvl < 1 || r.main_lvl > 5 || r.sub > 3 || r.sub_lvl > 3 || r.options > 2 ||
+       r.continues > 99 || r.gems > 1000000u || r.best_chain > 1000000u) {
+        return;
+    }
+    *out = r;
+}
 
 int save_pack(uint8_t *buf, int max)
 {
-    if(max < BODY_LEN + 4) return 0;
+    if(max < TOTAL_LEN) return 0;
     uint8_t *p = buf;
     put32(p, SAVE_MAGIC);
     p += 4;
@@ -73,7 +127,7 @@ int save_pack(uint8_t *buf, int max)
     *p++ = g_save.vsync;
     *p++ = g_save.max_stage;
     *p++ = g_save.clears;
-    *p++ = 0;
+    *p++ = g_save.auto_off;
     put32(p, g_save.plays);
     p += 4;
     for(int i = 0; i < NUM_SCORES; i++) {
@@ -86,7 +140,8 @@ int save_pack(uint8_t *buf, int max)
         p += REC_LEN;
     }
     put32(p, crc32(buf, BODY_LEN));
-    return BODY_LEN + 4;
+    pack_run(p + 4);
+    return TOTAL_LEN;
 }
 
 bool save_unpack(const uint8_t *buf, int len)
@@ -106,6 +161,7 @@ bool save_unpack(const uint8_t *buf, int len)
     s.vsync = p[4] > 2 ? 0 : p[4];
     s.max_stage = (p[5] < 1 || p[5] > 5) ? 1 : p[5];
     s.clears = p[6];
+    s.auto_off = p[7] > 2 ? 0 : p[7];
     p += 8;
     s.plays = get32(p);
     p += 4;
@@ -120,6 +176,12 @@ bool save_unpack(const uint8_t *buf, int len)
         h->diff = p[NAME_LEN + 1] > 2 ? 1 : p[NAME_LEN + 1];
         h->score = get32(p + NAME_LEN + 2);
         p += REC_LEN;
+    }
+    // a saved run is optional: a missing or damaged one only loses CONTINUE
+    const uint8_t *r = buf + BODY_LEN + 4;
+    if(len >= TOTAL_LEN && get32(r) == RUN_MAGIC && r[4] == RUN_LEN &&
+       get32(r + RUN_LEN) == crc32(r, RUN_LEN)) {
+        unpack_run(r + 5, &s.run);
     }
     g_save = s;
     return true;

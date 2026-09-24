@@ -358,6 +358,7 @@ void stage_start(int num)
         g_save.max_stage = (uint8_t)num;
         g_events |= EV_SAVE;
     }
+    if(num >= 2 && !g_run.practice) run_checkpoint();
 }
 
 void stage_update(void)
@@ -412,6 +413,7 @@ void stage_draw_overlay(void)
         fmt_int(buf + 6, s->num);
         text_draw_fx(SCR_W / 2 - text_width(buf, 2) / 2 - slide, y, buf, C_CYAN, 2, TX_SHADOW, NULL);
         text_draw_fx(SCR_W / 2 - text_width(STAGE_NAMES[s->num], 3) / 2 + slide, y + 22, STAGE_NAMES[s->num], C_WHITE, 3, TX_OUTLINE, NULL);
+        if(!g_run.practice && g_save.run.stage == s->num) text_center(y + 60, "RUN SAVED", C_GREY, 1, TX_SHADOW);
     }
 
     // boss warning

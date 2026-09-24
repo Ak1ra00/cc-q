@@ -13,7 +13,8 @@ void screens_enter(int st);
 
 int difficulty(void)
 {
-    return g_save.difficulty > 2 ? 1 : g_save.difficulty;
+    // the run's own, so a continued run keeps its difficulty whatever OPTIONS says now
+    return g_run.diff > 2 ? 1 : g_run.diff;
 }
 
 void game_set_state(int st)
@@ -89,8 +90,37 @@ int game_vsync(void)
 
 bool game_wants_idle_off(void)
 {
-    // ten minutes without a key press, and not in the middle of a fight
-    return s_idle_frames > 30 * 60 * 10 && g_game.state != ST_PLAY;
+    // the AUTO OFF time without a key press, and never in the middle of a fight
+    static const int minutes[3] = { 10, 30, 0 };
+    int m = minutes[g_save.auto_off > 2 ? 0 : g_save.auto_off];
+    return m && s_idle_frames > 30 * 60 * m && g_game.state != ST_PLAY;
+}
+
+void run_checkpoint(void)
+{
+    savedrun_t *r = &g_save.run;
+    r->stage = (uint8_t)g_stage.num;
+    r->diff = (uint8_t)difficulty();
+    r->lives = (uint8_t)iclamp(g_pl.lives, 0, 99);
+    r->maxhp = (uint8_t)g_pl.maxhp;
+    r->main_lvl = (uint8_t)g_pl.main_lvl;
+    r->sub = (uint8_t)g_pl.sub;
+    r->sub_lvl = (uint8_t)g_pl.sub_lvl;
+    r->options = (uint8_t)g_pl.options;
+    r->continues = (uint8_t)iclamp(g_run.continues, 0, 99);
+    r->score = g_run.score;
+    r->next_life = g_run.next_life;
+    r->frames = g_run.frames;
+    r->gems = (uint32_t)g_run.gems;
+    r->best_chain = (uint32_t)g_run.best_chain;
+    g_events |= EV_SAVE;
+}
+
+void run_checkpoint_clear(void)
+{
+    if(!g_save.run.stage) return;
+    memset(&g_save.run, 0, sizeof(g_save.run));
+    g_events |= EV_SAVE;
 }
 
 void game_init(uint32_t seed)
@@ -159,7 +189,7 @@ uint32_t game_frame(uint64_t keys)
     input_update(keys);
 
     if(g_in.raw_pressed) s_idle_frames = 0;
-    else s_idle_frames++;
+    else if(s_idle_frames < 0x7fffffff) s_idle_frames++;    // AUTO OFF can be NEVER
 
     // power key: tap pauses, hold switches off
     if(g_in.power_hold == 1 && g_game.state == ST_PLAY) game_set_state(ST_PAUSE);

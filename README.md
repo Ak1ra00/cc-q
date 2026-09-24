@@ -26,7 +26,12 @@ a MicroPython user module so it runs at native speed with nothing interpreted in
 **Controls:** arrow keys or WASD to move; the guns fire by themselves, hold ENTER to charge the
 beam; CANCEL for the Nova bomb; TAB or P to pause; hold POWER to save and switch off. The title
 screen also has a practice mode (jump straight to any stage you have reached), a high-score table,
-and an options screen (difficulty, screen shake, brightness, sync mode).
+and an options screen (difficulty, screen shake, brightness, sync mode, auto off).
+
+**Saved runs:** from stage 2 on, your run is saved as each stage starts. Switch off (or pick SAVE
+AND QUIT on the pause screen), and CONTINUE on the title picks it up at the start of that stage with
+the score, lives, weapons and difficulty you had there. Game over, quitting, or finishing the game
+clears it.
 
 ## Installing it
 
@@ -34,7 +39,7 @@ and an options screen (difficulty, screen shake, brightness, sync mode).
 2. **Before you do anything else, put an official Coinkite firmware `.dfu` on a spare microSD card
    and set it aside.** That card is how you get back to a normal Coldcard. Get it from
    [coldcard.com/downloads](https://coldcard.com/downloads).
-3. Put `quasar-1.1.0-q1.dfu` on a microSD card, insert it, and use your Coldcard's own **Advanced →
+3. Put `quasar-1.2.0-q1.dfu` on a microSD card, insert it, and use your Coldcard's own **Advanced →
    Upgrade → From MicroSD** to install it, exactly as you would any firmware update.
 
 **Read [SECURITY.md](SECURITY.md) before you do this.** In short: this firmware is not signed by

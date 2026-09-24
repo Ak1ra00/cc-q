@@ -358,7 +358,9 @@ STATIC mp_obj_t q_load_blob(mp_obj_t b_in)
 {
     mp_buffer_info_t bi;
     mp_get_buffer_raise(b_in, &bi, MP_BUFFER_READ);
-    return mp_obj_new_bool(save_unpack(bi.buf, (int)bi.len));
+    bool ok = save_unpack(bi.buf, (int)bi.len);
+    if(ok) screens_save_loaded();
+    return mp_obj_new_bool(ok);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(q_load_blob_obj, q_load_blob);
 

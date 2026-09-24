@@ -7,7 +7,7 @@
 #include "text.h"
 #include "assets_gen.h"
 
-#define QUASAR_VERSION  "1.1.0"
+#define QUASAR_VERSION  "1.2.0"
 #define FPS             30
 
 // ---------------------------------------------------------------- keys
@@ -69,6 +69,15 @@ typedef struct {
     uint32_t score;
 } hiscore_t;
 
+// a run as it stood at the start of a stage, so CONTINUE can pick it up there
+typedef struct {
+    uint8_t stage;          // 2..5, or 0 when no run is saved
+    uint8_t diff;
+    uint8_t lives, maxhp, main_lvl, sub, sub_lvl, options;
+    uint8_t continues;
+    uint32_t score, next_life, frames, gems, best_chain;
+} savedrun_t;
+
 typedef struct {
     uint8_t difficulty;     // 0 easy 1 normal 2 hard
     uint8_t shake;          // screen shake on/off
@@ -77,9 +86,10 @@ typedef struct {
     uint8_t vsync;          // 0 = strips left->right, 1 = right->left, 2 = off
     uint8_t max_stage;      // highest stage reached, for practice
     uint8_t clears;         // number of full clears
-    uint8_t rfu;
+    uint8_t auto_off;       // idle power-off on menus: 0 = 10 min, 1 = 30 min, 2 = never
     uint32_t plays;
     hiscore_t scores[NUM_SCORES];
+    savedrun_t run;         // what CONTINUE picks up
 } savedata_t;
 
 extern savedata_t g_save;
@@ -312,6 +322,7 @@ typedef struct {
     uint32_t next_life;
     bool practice;
     int start_stage;
+    int diff;               // difficulty this run is played at
     uint32_t frames;        // play time
     int gems;
 } run_t;
@@ -328,7 +339,7 @@ void hud_boss_bar(void);
 enum {
     ST_TITLE = 0, ST_OPTIONS, ST_SCORES, ST_HOWTO, ST_PRACTICE,
     ST_INTRO, ST_PLAY, ST_PAUSE, ST_STAGECLEAR, ST_GAMEOVER, ST_NAME,
-    ST_ENDING, ST_CREDITS, ST_CONFIRM_QUIT,
+    ST_ENDING, ST_CREDITS, ST_CONFIRM_QUIT, ST_CONFIRM_NEW,
 };
 
 typedef struct {
@@ -354,6 +365,9 @@ void game_debug_start(int stage, int diff);
 void screens_update(void);
 void screens_draw(void);
 void screens_before_off(void);      // commit anything pending before power-off
+void screens_save_loaded(void);     // the host loaded a save: point the title at CONTINUE
+void run_checkpoint(void);          // save the run as it stands at this stage's start
+void run_checkpoint_clear(void);    // the run is over: nothing to continue
 void title_bg_draw(void);
 
 // ---------------------------------------------------------------- platform
