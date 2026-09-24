@@ -1,0 +1,17 @@
+# build output (except the signed release we publish)
+external/micropython/ports/stm32/build-*/
+external/micropython/ports/unix/build/
+external/micropython/ports/unix/micropython
+external/micropython/mpy-cross/build/
+external/micropython/mpy-cross/mpy-cross
+external/micropython/ports/stm32/boards/COLDCARD_Q1
+sim/quasar_headless
+sim/quasar_sdl
+sim/*.ppm
+sim/*.png
+__pycache__/
+*.pyc
+.venv/
+
+# generated at build time, not committed (see firmware/build.sh)
+firmware/COLDCARD_Q1/file_time.c

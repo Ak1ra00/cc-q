@@ -1,0 +1,38 @@
+MIT License
+
+Copyright (c) 2026 the QUASAR contributors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+------------------------------------------------------------------------------
+
+This license covers this project's own code: the game (game/, sim/, tools/,
+docs/) and the QUASAR-specific firmware glue in firmware/COLDCARD_Q1/modquasar.c
+and firmware/python/{main,ui,system,qhw}.py.
+
+The rest of firmware/ — the Coldcard Q board support, the bootloader protocol
+client, and the signing tools — is substantially Coinkite Inc.'s own code,
+carried over (in several files unmodified, in a few adapted) from their
+open-source Coldcard firmware, and remains under their license: MIT with the
+Commons Clause restriction on selling the software. See firmware/COPYING-CC
+for its exact terms, and the notice at the top of each such file for which
+license applies to it.
+
+external/micropython is Coinkite's fork of MicroPython, included as a git
+submodule under its own MIT license; see that repository for its license text.

@@ -1,0 +1,4 @@
+[submodule "external/micropython"]
+	path = external/micropython
+	url = https://github.com/Coldcard/micropython.git
+	ignore = dirty
