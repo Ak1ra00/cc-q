@@ -112,6 +112,31 @@ static inline uint16_t c565_scale(uint16_t c, int k32)
 
 // same, for swapped frame-buffer pixels
 static inline px_t px_add(px_t a, px_t b) { return SWAP16(c565_add(SWAP16(a), SWAP16(b))); }
+
+// swap the bytes of both halves of a word: one instruction on the Cortex-M4
+static inline uint32_t rev16x2(uint32_t v)
+{
+#if defined(__arm__) && defined(__GNUC__)
+    uint32_t r;
+    __asm__("rev16 %0, %1" : "=r"(r) : "r"(v));
+    return r;
+#else
+    return ((v >> 8) & 0x00ff00ffu) | ((v << 8) & 0xff00ff00u);
+#endif
+}
+
+// px_add on two frame-buffer pixels in one 32-bit word, bit for bit the same result.
+// cm is the native addend in both halves, masked with 0xf7def7de.
+static inline uint32_t px_add2(uint32_t pp, uint32_t cm)
+{
+    uint32_t a = rev16x2(pp) & 0xf7def7deu;
+    uint32_t s = a + cm;
+    uint32_t top = ((a & cm) | ((a | cm) & ~s)) >> 31;     // the upper pixel's red carry leaves the word
+    uint32_t carry = s & 0x08210820u;
+    // bit 16 holds the lower pixel's red carry, which c565_add drops: it is not the upper blue's bit
+    s = (s & ~0x00010000u) | (carry - (carry >> 5)) | ((0u - top) & 0xf8000000u);
+    return rev16x2(s);
+}
 static inline px_t px_mix(px_t fg, px_t bg, int a32) { return SWAP16(c565_mix(SWAP16(fg), SWAP16(bg), a32)); }
 static inline px_t px_scale(px_t c, int k32) { return SWAP16(c565_scale(SWAP16(c), k32)); }
 static inline px_t px_half(px_t a, px_t b)

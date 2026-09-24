@@ -5,6 +5,8 @@
 px_t *g_fb;
 clip_t g_clip = { 0, 0, SCR_W, SCR_H };
 
+typedef uint32_t __attribute__((may_alias)) u32_alias;     // two frame-buffer pixels
+
 void gfx_set_target(px_t *fb)
 {
     g_fb = fb;
@@ -80,6 +82,14 @@ void gfx_fill_mode(int x, int y, int w, int h, px_t c, int mode)
     }
     if(!clip_rect(&x, &y, &w, &h)) return;
 
+    uint16_t cn = SWAP16(c);
+    uint32_t cm = ((uint32_t)cn | ((uint32_t)cn << 16)) & 0xf7def7deu;
+    if(mode == DM_ADD && x == 0 && y == 0 && w == SCR_W && h == SCR_H && !((uintptr_t)g_fb & 3)) {
+        // a full-screen flash: the strips sit back to back, so it is one run of memory
+        u32_alias *wp = (u32_alias *)g_fb;
+        for(int i = 0; i < SCR_W * SCR_H / 2; i++) wp[i] = px_add2(wp[i], cm);
+        return;
+    }
     int x1 = x + w;
     while(x < x1) {
         int s = x >> STRIP_SHIFT;
@@ -89,9 +99,18 @@ void gfx_fill_mode(int x, int y, int w, int h, px_t c, int mode)
         px_t *row = g_fb + s * STRIP_PIX + (y << STRIP_SHIFT) + (x & (STRIP_W - 1));
         for(int j = 0; j < h; j++, row += STRIP_W) {
             switch(mode) {
-                case DM_ADD:
-                    for(int i = 0; i < n; i++) row[i] = px_add(row[i], c);
+                case DM_ADD: {
+                    // two pixels per word (full-screen flashes); an odd pixel at either end alone
+                    int i = 0;
+                    if(((uintptr_t)row & 2) && n) {
+                        row[0] = px_add(row[0], c);
+                        i = 1;
+                    }
+                    u32_alias *wp = (u32_alias *)(row + i);
+                    for(; i + 1 < n; i += 2, wp++) *wp = px_add2(*wp, cm);
+                    if(i < n) row[i] = px_add(row[i], c);
                     break;
+                }
                 case DM_HALF:
                     for(int i = 0; i < n; i++) row[i] = px_half(row[i], c);
                     break;
@@ -255,15 +274,23 @@ void gfx_ring(int cx, int cy, int r0, int r1, px_t c, int mode)
     if(r1 <= 0) return;
     if(r0 < 0) r0 = 0;
     int o2 = r1 * r1 + r1, i2 = r0 * r0 - r0;
-    for(int dy = -r1; dy <= r1; dy++) {
+    int dya = g_clip.y0 - cy > -r1 ? g_clip.y0 - cy : -r1;
+    int dyb = g_clip.y1 - 1 - cy < r1 ? g_clip.y1 - 1 - cy : r1;
+    int ow = -1, iw = -1;               // outer and inner half-widths, stepped from row to row
+    for(int dy = dya; dy <= dyb; dy++) {
         int y = cy + dy;
-        if(y < g_clip.y0 || y >= g_clip.y1) continue;
-        int ow = isqrt((uint32_t)(o2 - dy * dy));
+        int t = o2 - dy * dy;
+        if(ow < 0) ow = isqrt((uint32_t)t);
+        while((ow + 1) * (ow + 1) <= t) ow++;
+        while(ow * ow > t) ow--;
         int inner = i2 - dy * dy;
         if(inner <= 0 || r0 == 0) {
+            iw = -1;
             gfx_fill_mode(cx - ow, y, 2 * ow + 1, 1, c, mode);
         } else {
-            int iw = isqrt((uint32_t)inner);
+            if(iw < 0) iw = isqrt((uint32_t)inner);
+            while((iw + 1) * (iw + 1) <= inner) iw++;
+            while(iw * iw > inner) iw--;
             gfx_fill_mode(cx - ow, y, ow - iw, 1, c, mode);
             gfx_fill_mode(cx + iw + 1, y, ow - iw, 1, c, mode);
         }
@@ -320,16 +347,28 @@ void gfx_glow(int cx, int cy, int r, px_t c)
 
     int r2 = r * r;
     int inv = (64 << 16) / r2;
+    int hw = -2;                        // the circle's half-width, stepped from row to row
     for(int y = y0; y < y1; y++) {
         int dy = y - cy, dy2 = dy * dy;
-        for(int x = x0; x < x1; x++) {
-            int dx = x - cx;
-            int d2 = dx * dx + dy2;
-            if(d2 >= r2) continue;
-            int k = glow_lut[(d2 * inv) >> 16];
-            if(!k) continue;
+        if(dy2 >= r2) continue;
+        // only the circle's span: dx*dx + dy2 < r2
+        if(hw < -1) hw = isqrt((uint32_t)(r2 - dy2 - 1));
+        while((hw + 1) * (hw + 1) + dy2 < r2) hw++;
+        while(hw * hw + dy2 >= r2) hw--;
+        int xa = cx - hw > x0 ? cx - hw : x0;
+        int xb = cx + hw + 1 < x1 ? cx + hw + 1 : x1;
+        int x = xa;
+        while(x < xb) {
+            int se = ((x >> STRIP_SHIFT) + 1) << STRIP_SHIFT;
+            if(se > xb) se = xb;
             px_t *p = &g_fb[FBI(x, y)];
-            *p = SWAP16(c565_add(SWAP16(*p), shade[k]));
+            int dx = x - cx, d2 = dx * dx + dy2;
+            for(; x < se; x++, p++) {
+                int k = glow_lut[(d2 * inv) >> 16];
+                if(k) *p = SWAP16(c565_add(SWAP16(*p), shade[k]));
+                d2 += 2 * dx + 1;
+                dx++;
+            }
         }
     }
 }
@@ -398,6 +437,37 @@ void gfx_sprite(const sprite_t *s, int x, int y, int flags, const px_t *pal, int
     }
 }
 
+static int32_t div_floor(int32_t a, int32_t b)
+{
+    int32_t q = a / b;
+    return (a % b && (a < 0) != (b < 0)) ? q - 1 : q;
+}
+
+static int32_t div_ceil(int32_t a, int32_t b)
+{
+    int32_t q = a / b;
+    return (a % b && (a < 0) == (b < 0)) ? q + 1 : q;
+}
+
+// narrow [*ka, *kb] to the k with 0 <= p0 + k * d <= lim
+static void span_limit(int32_t p0, int32_t d, int32_t lim, int *ka, int *kb)
+{
+    int32_t lo, hi;
+    if(d == 0) {
+        if(p0 < 0 || p0 > lim) *kb = *ka - 1;
+        return;
+    }
+    if(d > 0) {
+        lo = div_ceil(-p0, d);
+        hi = div_floor(lim - p0, d);
+    } else {
+        lo = div_ceil(lim - p0, d);
+        hi = div_floor(-p0, d);
+    }
+    if(lo > *ka) *ka = (int)lo;
+    if(hi < *kb) *kb = (int)hi;
+}
+
 void gfx_sprite_rot(const sprite_t *s, int x, int y, int angle, int scale, const px_t *pal, int mode, px_t flash)
 {
     if(!s || scale <= 0) return;
@@ -425,13 +495,20 @@ void gfx_sprite_rot(const sprite_t *s, int x, int y, int angle, int scale, const
 
     int32_t ox = (int32_t)s->ox << 16, oy = (int32_t)s->oy << 16;
     int32_t half = 1 << 15;
+    int32_t umax = ((int32_t)s->w << 16) - 1, vmax = ((int32_t)s->h << 16) - 1;
 
     for(int py = dy0; py < dy1; py++) {
         int ry = py - y;
         int rx = dx0 - x;
-        int32_t u = ox + half + rx * ux + ry * vx;
-        int32_t v = oy + half + rx * uy + ry * vy;
-        for(int px = dx0; px < dx1; px++, u += ux, v += uy) {
+        int32_t u0 = ox + half + rx * ux + ry * vx;
+        int32_t v0 = oy + half + rx * uy + ry * vy;
+        // skip straight to the columns whose texel lands inside the sprite
+        int ka = 0, kb = dx1 - dx0 - 1;
+        span_limit(u0, ux, umax, &ka, &kb);
+        span_limit(v0, uy, vmax, &ka, &kb);
+        if(ka > kb) continue;
+        int32_t u = u0 + ka * ux, v = v0 + ka * uy;
+        for(int px = dx0 + ka; px <= dx0 + kb; px++, u += ux, v += uy) {
             int tu = u >> 16, tv = v >> 16;
             if((unsigned)tu >= s->w || (unsigned)tv >= s->h) continue;
             uint8_t idx = s->pix[tv * s->w + tu];
