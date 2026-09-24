@@ -1,10 +1,20 @@
 # QUASAR
 
 A full custom firmware for the [Coldcard Q](https://coldcard.com/) that turns it into a dedicated
-handheld for **QUASAR**, a vertical-scrolling shoot-'em-up built to use every pixel of its 320×240
+handheld for **QUASAR**, a side-scrolling shoot-'em-up built to use every pixel of its 320×240
 color LCD and every key on its keyboard. There is no Bitcoin code in this firmware at all — no
 wallet, no seed words, no secure element access beyond what the bootloader itself requires to
 install firmware. It is a game console that happens to be shaped like a hardware wallet.
+
+<p align="center">
+  <img src="docs/showcase/stage1-frostbelt.gif" width="270" alt="Stage 1, Frost Belt: the Glacier Maw boss fight on a Coldcard Q">
+  <img src="docs/showcase/stage2-crimsonnebula.gif" width="270" alt="Stage 2, Crimson Nebula: the Hydra boss fight on a Coldcard Q">
+  <img src="docs/showcase/stage3-dysonarray.gif" width="270" alt="Stage 3, Dyson Array: the Warden boss fight on a Coldcard Q">
+  <img src="docs/showcase/stage4-solarcorona.gif" width="270" alt="Stage 4, Solar Corona: the Helios boss fight on a Coldcard Q">
+  <img src="docs/showcase/stage5-thequasar.gif" width="270" alt="Stage 5, The Quasar: the Singularity boss fight on a Coldcard Q">
+</p>
+<p align="center"><sub>The Coldcard Q is an illustration, not a photo. The gameplay on its screen is real: recorded
+from the game's simulator, pixel for pixel, at the game's own 30 frames a second.</sub></p>
 
 |  |  |  |
 |---|---|---|
