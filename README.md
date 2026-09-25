@@ -26,7 +26,7 @@ from the game's simulator, pixel for pixel, at the game's own 30 frames a second
 ## The home screen
 
 <p align="center">
-  <img src="docs/showcase/home-to-tetris.gif" alt="The home screen: sliding from QUASAR to TETRIS, launching it, and a game of Marathon">
+  <img src="docs/showcase/home-and-tetris.gif" alt="The home screen: sliding from QUASAR to TETRIS, launching it, and a game of Marathon">
 </p>
 <p align="center"><sub>From the simulator, pixel for pixel, at the firmware's own 30 frames a second.</sub></p>
 
@@ -51,7 +51,8 @@ clears, scored the guideline way. Three modes: **MARATHON** (endless, pick a sta
 15; the speed climbs every 10 lines up to 20G), **SPRINT** (40 lines against the clock) and
 **ULTRA** (as many points as you can in two minutes), each with its own record table.
 
-Every level has its own colors, fading from one to the next as you climb. Line clears flash and
+Every level has its own colors, fading from one to the next as you climb. New pieces slide in from
+behind the top edge of the well. Line clears flash and
 burst into sparks, a Tetris shakes the screen, hard drops leave light trails, the piece glows
 brighter as its lock delay runs out, and the field's frame flashes red when the stack gets close
 to the top.
@@ -67,7 +68,7 @@ score.
 
 | | |
 |---|---|
-| ![TETRIS: Marathon at level 5](docs/screenshots/tetris-marathon.png) | ![TETRIS: its menu](docs/screenshots/tetris-menu.png) |
+| ![TETRIS: Marathon, an I piece sliding in from behind the top of the well](docs/screenshots/tetris-play.png) | ![TETRIS: its menu](docs/screenshots/tetris-menu.png) |
 
 ## QUASAR
 
