@@ -43,7 +43,7 @@ static int8_t s_trail_top[4][3];     // x, top row, bottom row for each column t
 static int s_trail_n;
 static int s_next_slide, s_hold_flash;
 static int s_pop_t;
-static char s_pop[3][16];
+static char s_pop[3][20];
 static px_t s_pop_col;
 static uint32_t s_pop_pts;
 static int s_banner_t;
@@ -116,7 +116,7 @@ static void set_state(int st)
 
 static void fmt_time(char *buf, uint32_t frames, bool cs)
 {
-    uint32_t c = frames * 100 / FPS;
+    uint32_t c = (uint32_t)((uint64_t)frames * 100 / FPS);
     uint32_t m = c / 6000, s = (c / 100) % 60;
     char t[8];
     fmt_int(buf, (long)m);
@@ -169,13 +169,15 @@ static void start_game(int mode)
     set_state(T_READY);
 }
 
-static void suspend_game(void)
+static bool suspend_game(void)
 {
-    // keep the game to CONTINUE: finish a line clear first so a piece is in play
+    // keep the game to CONTINUE: finish a line clear first so a piece is in play.
+    // That can end it (no room for the next piece, or the sprint's last line): false then.
     tet_settle(&s_g);
-    if(s_g.over) return;
+    if(s_g.over) return false;
     g_arc.suspended = tet_pack(&s_g, g_arc.susp, TET_PACK_LEN) == TET_PACK_LEN;
     g_events |= EV_SAVE_ARCADE;
+    return true;
 }
 
 static bool resume_game(void)
@@ -607,7 +609,7 @@ static void draw_hud(bool hide)
     int y = 194;
     label(232, y, MODE_NAMES[s_mode]);
     y += 12;
-    uint32_t secs100 = s_g.frames ? s_g.pieces * FPS * 100 / s_g.frames : 0;
+    uint32_t secs100 = s_g.frames ? (uint32_t)((uint64_t)s_g.pieces * FPS * 100 / s_g.frames) : 0;
     strcpy(buf, "PPS ");
     fmt_int(buf + 4, (long)(secs100 / 100));
     str_cat(buf, ".");
@@ -933,7 +935,7 @@ static void scores_update(void)
 
 static void scores_draw(void)
 {
-    char buf[24];
+    char buf[48];           // room for the totals line at any size ("GAMES 4294967295   LINES 4,294,967,295")
     menu_bg_draw();
     ar_panel(22, 40, 276, 170, s_th.accent);
     text_center(28, "HIGH SCORES", C_WHITE, 2, TX_OUTLINE);
@@ -1064,7 +1066,10 @@ static void pause_update(void)
             set_state(T_CONFIRM);
             break;
         case PM_SAVEQUIT:
-            suspend_game();
+            if(!suspend_game()) {
+                game_ended();       // it was over after all: the results, and any record
+                break;
+            }
             s_menu_sel = MN_CONTINUE;
             set_state(T_MENU);
             break;
@@ -1277,6 +1282,11 @@ uint64_t tetris_bot_keys(int pace)
     return raw;
 }
 
+const tgame_t *tetris_debug_game(void)
+{
+    return &s_g;
+}
+
 int tetris_debug(uint32_t *score, int *lines, int *level, bool *over)
 {
     *score = s_g.score;
@@ -1311,16 +1321,24 @@ void tetris_power_tap(void)
     }
 }
 
+static void off_mid_game(void)
+{
+    // keep the game to carry on with, or if that ends it, its record
+    if(suspend_game()) return;
+    game_ended();
+    commit_record(g_arc.name[0] ? g_arc.name : "PLAYER");
+}
+
 void tetris_before_off(void)
 {
     switch(s_st) {
         case T_READY:
         case T_PLAY:
         case T_PAUSE:
-            suspend_game();
+            off_mid_game();
             break;
         case T_CONFIRM:
-            if(s_confirm != CF_NEW) suspend_game();
+            if(s_confirm != CF_NEW) off_mid_game();
             break;
         case T_OVER:
             commit_record(g_arc.name[0] ? g_arc.name : "PLAYER");

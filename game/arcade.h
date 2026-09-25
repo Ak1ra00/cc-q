@@ -74,6 +74,7 @@ void arcade_debug_start(int game, int mode);        // straight in, no animation
 uint64_t tetris_bot_keys(int pace);                 // the demo player's keys, as key matrix bits
 void tetris_debug_start(int mode);
 int tetris_debug(uint32_t *score, int *lines, int *level, bool *over);     // returns the screen
+const tgame_t *tetris_debug_game(void);
 
 // ---------------------------------------------------------------- shared drawing
 extern const px_t PIECE_COL[PC_KINDS];

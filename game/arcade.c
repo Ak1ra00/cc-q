@@ -164,6 +164,20 @@ bool arcade_save_unpack(const uint8_t *buf, int len)
             p += REC_LEN;
         }
     }
+    // each table in order, best first (an empty sprint slot, 0, goes last)
+    for(int m = 0; m < TM_COUNT; m++) {
+        trec_t *t = a.rec[m];
+        for(int i = 1; i < TREC_N; i++) {
+            for(int j = i; j > 0; j--) {
+                uint32_t hi = t[j - 1].value, lo = t[j].value;
+                bool swap = m == TM_SPRINT ? (lo && (!hi || lo < hi)) : lo > hi;
+                if(!swap) break;
+                trec_t tmp = t[j];
+                t[j] = t[j - 1];
+                t[j - 1] = tmp;
+            }
+        }
+    }
     // the paused game is checked again in full when it is continued
     const uint8_t *s = buf + BODY_LEN + 4;
     if(len >= ARC_TOTAL && get32(s) == SUSP_MAGIC && s[4] == TET_PACK_LEN &&

@@ -50,14 +50,21 @@ well be green while QUASAR runs; the 25-second warning is what marks it as unoff
 means the flash changed outside such an install.
 
 Keep an official firmware `.dfu` on a spare microSD card before you install this (see the README).
-Two things the bootloader source makes worth knowing:
+Three things the bootloader source makes worth knowing:
 
 - Its microSD **recovery mode** only starts when the firmware in flash is corrupt or missing, and
   it only accepts the exact image you were installing. If power is lost in the middle of an
   install, put that same `.dfu` on the card.
 - A firmware that is validly signed but fails early would not trigger recovery at all. That is why
   QUASAR brings the display up first and checks for **S** held at power-on before it touches
-  anything else: SYSTEM → INSTALL FIRMWARE has to stay reachable.
+  anything else: SYSTEM → INSTALL FIRMWARE has to stay reachable. The save files are only read
+  after that check, and the code that reads them is tested against thousands of damaged files
+  (`sim/fuzz_test.c`).
+- The bootloader's downgrade limit (the "highwater" timestamp, kept in one-time-programmable flash)
+  only rises when the running firmware asks it to record one (call gate 21, `dispatch.c`). QUASAR
+  reads that limit, to warn before an install the bootloader would refuse, but has no code that
+  records one, so running it never stops you going back to an official release the bootloader
+  accepted before.
 
 ## Verifying what you're installing
 

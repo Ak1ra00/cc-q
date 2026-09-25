@@ -384,6 +384,10 @@ void tet_settle(tgame_t *g)
     g->wait = 0;
     g->buf = 0;
     g->buf_dir = 0;
+    if(g->mode == TM_SPRINT && g->lines >= SPRINT_LINES) {
+        g->over = g->won = true;            // that clear finished the sprint
+        return;
+    }
     next_piece(g);
 }
 
@@ -393,7 +397,8 @@ uint32_t tet_step(tgame_t *g, uint32_t keys)
     uint32_t ev = 0;
     uint32_t pressed = keys & ~(uint32_t)g->keys_prev;
     g->keys_prev = (uint8_t)keys;
-    g->frames++;
+    // the sprint clock stops on the line that makes forty; its clear still plays out
+    if(!(g->mode == TM_SPRINT && g->lines >= SPRINT_LINES)) g->frames++;
     if(g->mode == TM_ULTRA && g->frames >= ULTRA_FRAMES) {
         g->over = g->won = true;
         g->active = false;
@@ -616,16 +621,21 @@ bool tet_unpack(tgame_t *g, const uint8_t *buf, int len)
     t.best_combo = (uint16_t)get16(p + 12);
     p += 14;
     for(int y = 0; y < TB_H; y++) {
+        int filled = 0;
         for(int x = 0; x < TB_W; x += 2, p++) {
             t.cell[y][x] = *p & 15;
             t.cell[y][x + 1] = *p >> 4;
             if(t.cell[y][x] >= PC_KINDS || t.cell[y][x + 1] >= PC_KINDS) return false;
+            filled += (t.cell[y][x] != 0) + (t.cell[y][x + 1] != 0);
         }
+        // a saved game never has a full row: they clear before it is saved
+        if(filled == TB_W) return false;
     }
     // anything out of range means nothing to continue, never a strange game
     if(t.mode >= TM_COUNT || t.type < PC_I || t.type > PC_L || t.rot < 0 || t.rot > 3 ||
        t.bag_n > 7 || t.hold > PC_L || t.level < 1 || t.level > MAX_LEVEL || t.start_level < 1 ||
        t.start_level > 15 || t.combo < -1 || t.score > 99999999u || t.lowest < t.y ||
+       t.frames > 40000000u || t.pieces > 10000000u ||
        (t.mode == TM_ULTRA && t.frames >= ULTRA_FRAMES) || (t.mode == TM_SPRINT && t.lines >= SPRINT_LINES)) {
         return false;
     }

@@ -97,7 +97,7 @@ uint32_t tet_step(tgame_t *g, uint32_t keys);
 bool tet_fits(const tgame_t *g, int type, int rot, int x, int y);
 int tet_ghost_y(const tgame_t *g);
 int32_t tet_gravity(int level);
-void tet_settle(tgame_t *g);        // finish a line clear and bring in the next piece
+void tet_settle(tgame_t *g);        // finish a line clear and bring in the next piece (may end the game)
 int tet_stack_height(const tgame_t *g);
 
 // suspend / resume

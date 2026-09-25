@@ -26,9 +26,8 @@ from the game's simulator, pixel for pixel, at the game's own 30 frames a second
 ## The home screen
 
 <p align="center">
-  <img src="docs/showcase/home-and-tetris.gif" alt="The home screen: sliding from QUASAR to TETRIS, launching it, and a game of Marathon">
+  <img src="docs/showcase/home-screen.gif" width="270" alt="The home screen on a Coldcard Q: sliding from QUASAR to TETRIS and launching it">
 </p>
-<p align="center"><sub>From the simulator, pixel for pixel, at the firmware's own 30 frames a second.</sub></p>
 
 Switch on and the games wait side by side on a neon horizon, each on a card that plays itself: a
 QUASAR ship fighting its way through drones, and a TETRIS game stacking its own blocks. **LEFT** and
@@ -66,6 +65,14 @@ instant), and whether UP turns or hard-drops.
 CONTINUE on the TETRIS menu picks it up exactly where you left it — same board, same queue, same
 score.
 
+<p align="center">
+  <img src="docs/showcase/tetris-marathon.gif" width="270" alt="TETRIS Marathon on a Coldcard Q: a back-to-back Tetris that takes the game to level 5">
+  <img src="docs/showcase/tetris-sprint.gif" width="270" alt="TETRIS Sprint on a Coldcard Q: the fortieth line, the finish and the time">
+  <img src="docs/showcase/tetris-ultra.gif" width="270" alt="TETRIS Ultra on a Coldcard Q: the last seconds of the two minutes and a new record">
+</p>
+<p align="center"><sub>As with QUASAR below, the Coldcard Q is an illustration, not a photo; what's on its screen is real,
+recorded from the simulator, pixel for pixel, at the game's own 30 frames a second.</sub></p>
+
 | | |
 |---|---|
 | ![TETRIS: Marathon, an I piece sliding in from behind the top of the well](docs/screenshots/tetris-play.png) | ![TETRIS: its menu](docs/screenshots/tetris-menu.png) |
@@ -98,7 +105,7 @@ clears it. HOME on the title goes back to the home screen.
 2. **Before you do anything else, put an official Coinkite firmware `.dfu` on a spare microSD card
    and set it aside.** That card is how you get back to a normal Coldcard. Get it from
    [coldcard.com/downloads](https://coldcard.com/downloads).
-3. Put `quasar-1.3.1-q1.dfu` on a microSD card, insert it, and use your Coldcard's own **Advanced →
+3. Put `quasar-1.3.2-q1.dfu` on a microSD card, insert it, and use your Coldcard's own **Advanced →
    Upgrade → From MicroSD** to install it, exactly as you would any firmware update.
 
 **Read [SECURITY.md](SECURITY.md) before you do this.** In short: this firmware is not signed by
@@ -137,11 +144,12 @@ desktop simulator (`sim/`) used for testing and for the screenshots above:
 ```
 cd sim && make && ./quasar_headless --bot --stage 1   # plays QUASAR's stage 1 with an autopilot
 ./quasar_headless --bot --tetris 0                    # plays TETRIS marathon with its demo player
-make test                                             # TETRIS rules and home screen tests (SAN=1 for sanitizers)
+make test                                             # TETRIS rules, home screen and a short fuzz (SAN=1 for sanitizers)
+make fuzz SAN=1 FRAMES=2000000                        # the long randomised run: key mashing, power cuts, damaged saves
 ```
 
-The Python side that talks to the bootloader (`firmware/python/system.py`, for installing other
-firmware) has its own test suite that runs against the real MicroPython interpreter, mocking only
+The Python side (`firmware/python/main.py` for boot and the save files, `system.py` for installing
+other firmware) has its own test suite that runs against the real MicroPython interpreter, mocking only
 the hardware: `./firmware/tests/run.sh`.
 
 ## What's in here

@@ -97,6 +97,81 @@ static void test_tspin_double(void)
     CHECK("tsd: sets back-to-back", g.b2b);
 }
 
+static void test_tspin_triple(void)
+{
+    // the classic T-spin triple: only the fifth kick (one left, two down) gets it in
+    tgame_t g;
+    tet_new(&g, TM_MARATHON, 1, 1);
+    fill_row(&g, 19, "....X.....");
+    fill_row(&g, 21, "XXXX.XXXXX");
+    fill_row(&g, 22, "XXXX..XXXX");
+    fill_row(&g, 23, "XXXX.XXXXX");
+    place(&g, PC_T, 0, 4, 19);
+    uint32_t ev = press(&g, TK_CW);
+    CHECK("tst: the turn takes the fifth kick", (ev & TE_ROTATE) && g.rot == 1 && g.x == 3 && g.y == 21 && g.last_kick == 4);
+    press(&g, TK_HARD);
+    CHECK("tst: a full T-spin triple, 1600", g.lk_spin == SPIN_FULL && g.lk_lines == 3 && g.lk_points == 1600);
+}
+
+static void test_tspin_mini(void)
+{
+    // three corners, but only one of the two the T points at: a mini
+    tgame_t g;
+    tet_new(&g, TM_MARATHON, 1, 1);
+    fill_row(&g, 23, ".XXXXXXXXX");
+    fill_row(&g, 22, "..........");
+    place(&g, PC_T, 1, -1, 21);         // pointing right, against the left wall, stem in the hole
+    g.last_rot = true;
+    g.last_kick = 0;
+    press(&g, TK_HARD);
+    CHECK("mini: counted as a mini T-spin single, 200", g.lk_spin == SPIN_MINI && g.lk_lines == 1 && g.lk_points == 200);
+    CHECK("mini: a mini single does not start back-to-back from nothing", !g.lk_b2b && g.b2b);
+}
+
+static void test_buffered_input(void)
+{
+    // turn and hold pressed during a line clear act on the next piece as it appears
+    tgame_t g;
+    tet_new(&g, TM_MARATHON, 1, 3);
+    fill_row(&g, 23, "XXXXXX....");
+    place(&g, PC_I, 0, 6, 10);
+    press(&g, TK_HARD);
+    CHECK("buffer: a line is clearing", !g.active && g.clear_n == 1);
+    tet_step(&g, TK_CW);
+    tet_step(&g, 0);
+    int n = 0;
+    while(!g.active && n++ < 40) tet_step(&g, 0);
+    CHECK("buffer: the turn pressed during the clear applies to the new piece", g.active && g.rot == 1);
+
+    tet_new(&g, TM_MARATHON, 1, 3);
+    fill_row(&g, 23, "XXXXXX....");
+    place(&g, PC_I, 0, 6, 10);
+    press(&g, TK_HARD);
+    int next = g.next[0], after = g.next[1];
+    tet_step(&g, TK_HOLD);
+    tet_step(&g, 0);
+    n = 0;
+    while(!g.active && n++ < 40) tet_step(&g, 0);
+    CHECK("buffer: a hold pressed during the clear holds the new piece at once", g.hold == next && g.type == after && g.hold_used);
+}
+
+static void test_das_carry(void)
+{
+    // with instant repeat, holding RIGHT through the clear sends the next piece straight to the wall
+    tgame_t g;
+    tet_new(&g, TM_MARATHON, 1, 3);
+    g.das = 3;
+    g.arr = 0;
+    fill_row(&g, 23, "XXXXXX....");
+    place(&g, PC_I, 0, 6, 10);
+    press(&g, TK_HARD);
+    int n = 0;
+    while(!g.active && n++ < 40) tet_step(&g, TK_RIGHT);
+    int right = 0;
+    for(int i = 0; i < 4; i++) right = g.x + TET_SHAPE[g.type][g.rot][i][0] > right ? g.x + TET_SHAPE[g.type][g.rot][i][0] : right;
+    CHECK("das: a charged instant repeat carries into the next piece", g.active && right == TB_W - 1);
+}
+
 static void test_wall_kick(void)
 {
     tgame_t g;
@@ -240,12 +315,22 @@ static void test_ai(void)
     tet_new(&g, TM_SPRINT, 1, 43);
     memset(&ai, 0, sizeof(ai));
     frames = 0;
-    uint32_t ev = 0;
+    uint32_t ev = 0, at40 = 0;
     while(!g.over && frames < 100000) {
-        ev |= tet_step(&g, tet_ai_keys(&g, &ai, 1, true));
+        uint32_t e = tet_step(&g, tet_ai_keys(&g, &ai, 1, true));
+        if((e & TE_CLEAR) && g.lines >= SPRINT_LINES && !at40) at40 = g.frames;
+        ev |= e;
         frames++;
     }
     CHECK("sprint: ends, won, at 40 lines", g.over && g.won && g.lines >= 40 && (ev & TE_GOAL));
+    CHECK("sprint: the clock stops on the fortieth line, not after its clear", at40 && g.frames == at40);
+
+    // switched off during that last clear: the sprint is won, not carried on past forty
+    tet_new(&g, TM_SPRINT, 1, 43);
+    memset(&ai, 0, sizeof(ai));
+    for(frames = 0; frames < 100000 && !(g.lines >= SPRINT_LINES); frames++) tet_step(&g, tet_ai_keys(&g, &ai, 1, true));
+    tet_settle(&g);
+    CHECK("sprint: settling the final clear wins it", g.over && g.won && !g.active);
 
     tet_new(&g, TM_ULTRA, 1, 44);
     memset(&ai, 0, sizeof(ai));
@@ -262,6 +347,10 @@ int main(void)
     test_kick_symmetry();
     test_rotation_table();
     test_tspin_double();
+    test_tspin_triple();
+    test_tspin_mini();
+    test_buffered_input();
+    test_das_carry();
     test_wall_kick();
     test_perfect_clear();
     test_b2b_combo();

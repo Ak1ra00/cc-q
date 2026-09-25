@@ -3,8 +3,9 @@
 # runs on the Coldcard Q.
 #
 #   make            the headless runner
-#   make test       the TETRIS rules and home screen tests
+#   make test       the TETRIS rules and home screen tests, and a short fuzz
 #   make test SAN=1 the same, with AddressSanitizer and UndefinedBehaviorSanitizer
+#   make fuzz       the long randomised run (FRAMES=..., SEED=...; best with SAN=1)
 
 GAME = ../game
 SRC = $(wildcard $(GAME)/*.c)
@@ -26,11 +27,21 @@ tetris_test: tetris_test.c $(GAME)/tetris.c $(GAME)/gmath.c $(HDR)
 arcade_test: arcade_test.c $(SRC) $(HDR)
 	$(CC) $(CFLAGS) -o $@ arcade_test.c $(SRC) -lm
 
-test: tetris_test arcade_test
+fuzz_test: fuzz_test.c $(SRC) $(HDR)
+	$(CC) $(CFLAGS) -o $@ fuzz_test.c $(SRC) -lm
+
+FRAMES ?= 1000000
+SEED ?= 1
+
+test: tetris_test arcade_test fuzz_test
 	./tetris_test
 	./arcade_test
+	./fuzz_test 60000 $(SEED)
+
+fuzz: fuzz_test
+	./fuzz_test $(FRAMES) $(SEED)
 
 clean:
-	rm -f quasar_headless tetris_test arcade_test
+	rm -f quasar_headless tetris_test arcade_test fuzz_test
 
-.PHONY: all test clean
+.PHONY: all test fuzz clean

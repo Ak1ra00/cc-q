@@ -171,6 +171,63 @@ static void test_suspend_resume(void)
     CHECK("end game: nothing left to continue", !g_arc.suspended);
 }
 
+static void test_resume_keeps_keys(void)
+{
+    // ENTER resumes, and is also hard drop: still held as play restarts, it must not drop
+    boot(21);
+    arcade_debug_start(GAME_TETRIS, TM_MARATHON);
+    frames(60, 0);
+    frames(20, 0);
+    const tgame_t *g = tetris_debug_game();
+    uint32_t pieces = g->pieces;
+    tap(K_TAB);
+    CHECK("pause: TAB pauses", tstate() == T_PAUSE);
+    frames(40, KEYBIT(K_ENTER));        // RESUME, then keep holding through the count
+    CHECK("pause: ENTER resumes", tstate() == T_PLAY);
+    CHECK("pause: the held ENTER does not hard drop", g->pieces == pieces && g->active);
+    frames(2, 0);
+    tap(K_ENTER);
+    CHECK("pause: a fresh ENTER does", g->pieces == pieces + 1);
+}
+
+static void test_save_that_ends_the_game(void)
+{
+    // SAVE AND QUIT just as there is no room for the next piece: results, not a silent end
+    boot(22);
+    arcade_debug_start(GAME_TETRIS, TM_MARATHON);
+    frames(60, 0);
+    frames(10, 0);
+    tgame_t *g = (tgame_t *)tetris_debug_game();
+    for(int y = 2; y < TB_H; y++) {
+        for(int x = 0; x < TB_W; x++) g->cell[y][x] = (x == (y % TB_W)) ? PC_NONE : PC_GREY;
+    }
+    g->active = false;          // as if the piece had just locked
+    g->wait = 1;
+    g->clear_n = 0;
+    g->score = 12345;
+    tap(K_TAB);
+    tap(K_DOWN);
+    tap(K_DOWN);
+    tap(K_ENTER);               // SAVE AND QUIT
+    CHECK("save+quit: a game that ends right there shows its results", tstate() == T_OVER);
+    CHECK("save+quit: and leaves nothing to continue", !g_arc.suspended);
+
+    boot(23);
+    arcade_debug_start(GAME_TETRIS, TM_MARATHON);
+    frames(70, 0);
+    g = (tgame_t *)tetris_debug_game();
+    for(int y = 2; y < TB_H; y++) {
+        for(int x = 0; x < TB_W; x++) g->cell[y][x] = (x == (y % TB_W)) ? PC_NONE : PC_GREY;
+    }
+    g->active = false;
+    g->wait = 1;
+    g->clear_n = 0;
+    g->score = 70000;           // a record
+    frames(45, KEYBIT(K_POWER));
+    CHECK("power off: a game that ends right there still gets its record",
+          g_arc.rec[TM_MARATHON][0].value == 70000 && !g_arc.suspended);
+}
+
 static void test_damaged_saves(void)
 {
     boot(4);
@@ -257,6 +314,8 @@ int main(void)
     test_home_and_back();
     test_settings_and_system();
     test_suspend_resume();
+    test_resume_keeps_keys();
+    test_save_that_ends_the_game();
     test_damaged_saves();
     test_idle();
     test_idle_keeps_record();

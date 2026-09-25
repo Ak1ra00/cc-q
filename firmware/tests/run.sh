@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Runs the QUASAR system-screen Python tests (test_system.py) against the real
+# Runs the QUASAR Python tests (test_system.py, test_main.py) against the real
 # MicroPython interpreter from our pinned fork, built for the host (unix port)
 # instead of the STM32 target.
 #
@@ -30,4 +30,5 @@ if [ ! -x "$MP" ]; then
         FROZEN_MANIFEST= >/dev/null
 fi
 
-exec "$MP" -X heapsize=32M "$ROOT/firmware/tests/test_system.py"
+"$MP" -X heapsize=32M "$ROOT/firmware/tests/test_system.py"
+exec "$MP" -X heapsize=32M "$ROOT/firmware/tests/test_main.py"
