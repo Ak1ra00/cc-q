@@ -2,8 +2,8 @@
 
 A full custom firmware for the [Coldcard Q](https://coldcard.com/) that turns it into a dedicated
 handheld game console. It boots into **Q ARCADE**, a home screen that shows each game as a live
-card, and comes with two games built to use every pixel of its 320×240 color LCD and every key on
-its keyboard: **QUASAR**, a side-scrolling shoot-'em-up, and **TETRIS**. There is no Bitcoin code in
+card, and comes with three games built to use every pixel of its 320×240 color LCD and every key on
+its keyboard: **QUASAR**, a side-scrolling shoot-'em-up, **TETRIS**, and **PAC-MAN** in neon. There is no Bitcoin code in
 this firmware at all — no wallet, no seed words, no secure element access beyond what the
 bootloader itself requires to install firmware. It is a game console that happens to be shaped like
 a hardware wallet.
@@ -26,11 +26,12 @@ from the game's simulator, pixel for pixel, at the game's own 30 frames a second
 ## The home screen
 
 <p align="center">
-  <img src="docs/showcase/home-screen.gif" width="270" alt="The home screen on a Coldcard Q: sliding from QUASAR to TETRIS and launching it">
+  <img src="docs/showcase/home-screen.gif" width="270" alt="The home screen on a Coldcard Q: sliding from QUASAR past TETRIS to PAC-MAN and launching it">
 </p>
 
 Switch on and the games wait side by side on a neon horizon, each on a card that plays itself: a
-QUASAR ship fighting its way through drones, and a TETRIS game stacking its own blocks. **LEFT** and
+QUASAR ship fighting its way through drones, a TETRIS game stacking its own blocks, and a PAC-MAN
+game in a half-size neon maze, chased by all four ghosts. **LEFT** and
 **RIGHT** slide between them — the whole screen's colors follow the card you're on — and **ENTER**
 zooms the card up to fill the screen and opens the game behind a wave of blocks. Each card shows
 your best score, and a badge when there's a saved game waiting. **DOWN** reaches **SETTINGS**
@@ -38,9 +39,48 @@ your best score, and a badge when there's a saved game waiting. **DOWN** reaches
 game, HOME on its menu (or CANCEL there) brings you back. The home screen opens on the last game
 you played.
 
+| | | |
+|---|---|---|
+| ![The home screen, on QUASAR](docs/screenshots/home-quasar.png) | ![The home screen, on TETRIS](docs/screenshots/home-tetris.png) | ![The home screen, on PAC-MAN](docs/screenshots/home-pacman.png) |
+
+## PAC-MAN
+
+The arcade game, rebuilt in light. The walls are glowing neon tubes that breathe, flare as an
+energizer's shockwave rolls through them, dim while the ghosts are blue and flash white when a
+maze is cleared; every few levels brings a new maze and a new color. Pac-Man, the ghosts, the dots
+and the fruit are drawn anti-aliased every frame, each with its own glow.
+
+Under the neon it plays by the arcade's rules: Blinky chases, Pinky cuts you off, Inky flanks from
+Blinky's side and Clyde loses his nerve up close; they scatter and chase in waves, turn blue for less
+time each level, and come out of their house by the arcade's dot counters. Speeds, energizer times,
+Elroy, fruit and the extra life at 10,000 all follow the original tables. Two modes, each with its
+own record table:
+
+- **CLASSIC** — the arcade, ghost for ghost.
+- **NEON** — everything above, plus a **dash** that charges as you eat (40 dots) and carries you
+  straight through ghosts, and two power-ups that turn up in the maze: **MAGNET** pulls in the dots
+  around you, and **FREEZE** turns the ghosts to ice that shatters at a touch. Eat all four ghosts on
+  one energizer for a 3,000 bonus.
+
+**Controls:** the arrow keys or W A S D steer — a tap is remembered until the next turning comes,
+so you can turn early; SPACE, ENTER or SHIFT dash (NEON); CANCEL, TAB or P to pause; hold POWER to
+save the game and switch off. The menu plays a demo game behind it, with a demo player that looks
+ahead before every turn.
+
+**Saved games:** SAVE AND QUIT, or holding POWER, keeps the level exactly as it was — score, lives,
+and every dot still in the maze — and CONTINUE picks it up from a READY.
+
+<p align="center">
+  <img src="docs/showcase/pacman-classic.gif" width="270" alt="PAC-MAN Classic on a Coldcard Q: an energizer, and the ghosts turn blue and get eaten">
+  <img src="docs/showcase/pacman-neon.gif" width="270" alt="PAC-MAN Neon on a Coldcard Q: a FREEZE, and the iced ghosts shatter one after another">
+  <img src="docs/showcase/pacman-mazes.gif" width="270" alt="PAC-MAN on a Coldcard Q: a cleared maze flashes and the next level opens in a new maze and color">
+</p>
+<p align="center"><sub>The Coldcard Q is an illustration, not a photo; what's on its screen is real, recorded from the
+simulator, pixel for pixel, at the game's own 30 frames a second.</sub></p>
+
 | | |
 |---|---|
-| ![The home screen, on QUASAR](docs/screenshots/home-quasar.png) | ![The home screen, on TETRIS](docs/screenshots/home-tetris.png) |
+| ![PAC-MAN: Neon, the ghosts turned blue and a MAGNET waiting in the maze](docs/screenshots/pacman-play.png) | ![PAC-MAN: its menu, over the demo game](docs/screenshots/pacman-menu.png) |
 
 ## TETRIS
 
@@ -105,7 +145,7 @@ clears it. HOME on the title goes back to the home screen.
 2. **Before you do anything else, put an official Coinkite firmware `.dfu` on a spare microSD card
    and set it aside.** That card is how you get back to a normal Coldcard. Get it from
    [coldcard.com/downloads](https://coldcard.com/downloads).
-3. Put `quasar-1.3.2-q1.dfu` on a microSD card, insert it, and use your Coldcard's own **Advanced →
+3. Put `quasar-1.4.0-q1.dfu` on a microSD card, insert it, and use your Coldcard's own **Advanced →
    Upgrade → From MicroSD** to install it, exactly as you would any firmware update.
 
 **Read [SECURITY.md](SECURITY.md) before you do this.** In short: this firmware is not signed by
@@ -116,8 +156,9 @@ FIRMWARE** on the home screen with the card from step 2 (hold **S** while switch
 straight there), which is why that card matters.
 
 Updating from an earlier QUASAR keeps your QUASAR scores, saved run and settings: they stay in
-`/flash/quasar.sav` as before, and the home screen and TETRIS keep theirs in a file of their own,
-`/flash/arcade.sav`.
+`/flash/quasar.sav` as before, and the home screen, TETRIS and PAC-MAN keep theirs in a file of
+their own, `/flash/arcade.sav` (PAC-MAN's part is added to the end of it, so a 1.3 file carries
+straight over).
 
 ## Building it from source
 
@@ -144,7 +185,8 @@ desktop simulator (`sim/`) used for testing and for the screenshots above:
 ```
 cd sim && make && ./quasar_headless --bot --stage 1   # plays QUASAR's stage 1 with an autopilot
 ./quasar_headless --bot --tetris 0                    # plays TETRIS marathon with its demo player
-make test                                             # TETRIS rules, home screen and a short fuzz (SAN=1 for sanitizers)
+./quasar_headless --bot --pac 1                       # plays PAC-MAN neon with its demo player
+make test                                             # TETRIS and PAC-MAN rules, home screen and a short fuzz (SAN=1 for sanitizers)
 make fuzz SAN=1 FRAMES=2000000                        # the long randomised run: key mashing, power cuts, damaged saves
 ```
 
@@ -156,10 +198,12 @@ the hardware: `./firmware/tests/run.sh`.
 
 - `game/` — the games: portable C, no MicroPython or hardware dependencies. `arcade.c` runs the
   frame loop over the home screen (`home.c`) and the games; QUASAR is everything else there
-  (`game.c` and friends); TETRIS is `tetris.c` (the rules) and `tetris_ui.c` (its screens).
+  (`game.c` and friends); TETRIS is `tetris.c` (the rules) and `tetris_ui.c` (its screens);
+  PAC-MAN is `pac.c` (the rules, the ghosts and the demo player) and `pac_ui.c` (its screens).
 - `sim/` — a headless desktop build of the games, for tests and screenshots.
-- `tools/` — the offline pipeline that generates `game/assets_gen.c` (sprites, backgrounds) and
-  `game/font_gen.c` (the bitmap font) from source art, so nothing is drawn by hand at build time.
+- `tools/` — the offline pipeline that generates `game/assets_gen.c` (sprites, backgrounds),
+  `game/font_gen.c` (the bitmap font) and `game/pac_gen.c` (PAC-MAN's mazes, their neon walls and
+  its logo) from source art, so nothing is drawn by hand at build time.
 - `firmware/COLDCARD_Q1/` — the board port: `modquasar.c` drives the LCD and keyboard and exposes
   the games to Python; everything else here is Coinkite's original Coldcard Q board support with the
   Bitcoin-specific pieces removed.
@@ -176,10 +220,12 @@ Built on [Coinkite](https://coinkite.com/)'s open-source
 [Coldcard firmware](https://github.com/Coldcard/firmware) and their fork of
 [MicroPython](https://github.com/Coldcard/micropython) — the board bring-up, bootloader protocol,
 and firmware-signing tools here are theirs; see [COPYING-CC](COPYING-CC) and the notice at
-the top of each file that keeps their copyright. QUASAR the game, the home screen, this TETRIS, and
-everything under `game/`, `sim/`, and `tools/`, is new for this project. See [LICENSE](LICENSE)
+the top of each file that keeps their copyright. QUASAR the game, the home screen, this TETRIS, this
+PAC-MAN, and everything under `game/`, `sim/`, and `tools/`, is new for this project. See [LICENSE](LICENSE)
 for the terms.
 
 This is a hobby project, independent of and not endorsed by Coinkite. Tetris is a trademark of The
 Tetris Company; the TETRIS here is an independent fan-made implementation, not affiliated with or
-endorsed by them.
+endorsed by them. PAC-MAN is a trademark of Bandai Namco Entertainment Inc.; the PAC-MAN here is
+likewise an independent fan-made tribute, not affiliated with or endorsed by them, and all of its
+art (mazes, characters, fruit and logo) is drawn from scratch for this project.

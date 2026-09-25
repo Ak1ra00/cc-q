@@ -1,7 +1,8 @@
 // Q ARCADE - randomised tests: a monkey mashing keys across the home screen,
-// QUASAR and TETRIS with the invariants checked every frame, power cuts and
-// reboots at random moments, damaged save files (with good checksums, so the
-// field checks are what gets tested), and the TETRIS rules under random play.
+// QUASAR, TETRIS and PAC-MAN with the invariants checked every frame, power cuts
+// and reboots at random moments, damaged save files (with good checksums, so the
+// field checks are what gets tested), and the TETRIS and PAC-MAN rules under
+// random play.
 //
 //   fuzz_test [frames] [seed]      default 400000 frames; make fuzz runs longer
 //
@@ -9,6 +10,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include "../game/arcade.h"
+
+#define FW_BUF  1024            // q_arcade_blob's buffer in modquasar.c
+#define PAC_AT  471             // PAC-MAN's block, after where 1.3's file ended
 
 static px_t fb[FB_PIX];
 static uint32_t s_ms;
@@ -68,6 +72,37 @@ static void check_game(const tgame_t *g, const char *where)
     if(g->clear_n > 4) FAIL("%s: clear_n %d", where, g->clear_n);
 }
 
+static void check_pac(const pgame_t *g, const char *where)
+{
+    int n = 0;
+    for(int y = 0; y < PM_H; y++) {
+        for(int x = 0; x < PM_W; x++) {
+            char c = PAC_MAZE[g->maze][y][x];
+            if(g->dot[y][x] > 2 || (g->dot[y][x] && c != '.' && c != 'o')) FAIL("%s: a dot at %d,%d on '%c'", where, x, y, c);
+            n += g->dot[y][x] != 0;
+        }
+    }
+    if(n != g->dots_left || n > g->dots_total) FAIL("%s: %d dots, %d counted, %d in all", where, n, g->dots_left, g->dots_total);
+    if(g->level < 1 || g->level > PAC_MAX_LEVEL || g->maze != pac_maze_for_level(g->level)) FAIL("%s: level %d maze %d", where, g->level, g->maze);
+    if(g->lives > PAC_MAX_LIVES || (!g->lives && !g->over)) FAIL("%s: lives %d", where, g->lives);
+    if(g->phase > PP_OVER || g->over != (g->phase == PP_OVER)) FAIL("%s: phase %d over %d", where, g->phase, g->over);
+    if(g->score % 10 || g->score > 999999990u) FAIL("%s: score %u", where, g->score);
+    if(g->boost > BOOST_FULL || g->fright_t < 0 || g->fright_t > g->fright_len) FAIL("%s: boost / fright", where);
+    if(g->item_t > 0 && !pac_open(g, g->item_x, g->item_y)) FAIL("%s: an item in a wall", where);
+    if(g->pac.x < 0 || g->pac.x >= PM_W * PT || !pac_open(g, g->pac.x >> 8, g->pac.y >> 8)) FAIL("%s: Pac-Man in a wall", where);
+    if(g->pac.dir >= PD_NONE) FAIL("%s: Pac-Man has no way", where);
+    for(int i = 0; i < GH_N; i++) {
+        const pactor_t *a = &g->gh[i];
+        if(a->x < 0 || a->x >= PM_W * PT || a->y < 0 || a->y >= PM_H * PT || a->state > GS_ENTERING) {
+            FAIL("%s: ghost %d off the maze", where, i);
+        } else if(a->state == GS_ACTIVE || a->state == GS_EYES) {
+            if(!pac_open(g, a->x >> 8, a->y >> 8)) FAIL("%s: ghost %d in a wall", where, i);
+        } else if(a->x < 16 * PT || a->x > 22 * PT || a->y < 9 * PT || a->y > 13 * PT + PT / 2) {
+            FAIL("%s: ghost %d strays from the house (%d)", where, i, a->state);
+        }
+    }
+}
+
 static void check_saved_state(const char *where)
 {
     if(g_arc.last_game >= NUM_GAMES) FAIL("%s: last_game %d", where, g_arc.last_game);
@@ -87,13 +122,25 @@ static void check_saved_state(const char *where)
         if(!tet_unpack(&t, g_arc.susp, TET_PACK_LEN)) FAIL("%s: a saved game that will not continue", where);
         else check_game(&t, "saved game");
     }
+    for(int m = 0; m < PM_MODES; m++) {
+        for(int i = 0; i < TREC_N; i++) {
+            const trec_t *r = &g_arc.pac_rec[m][i];
+            if(!name_ok(r->name) || r->level > PAC_MAX_LEVEL) FAIL("%s: PAC-MAN record %d/%d", where, m, i);
+            if(i && r->value > g_arc.pac_rec[m][i - 1].value) FAIL("%s: PAC-MAN records out of order", where);
+        }
+    }
+    if(g_arc.pac_suspended) {
+        pgame_t t;
+        if(!pac_unpack(&t, g_arc.pac_susp, PAC_PACK_LEN)) FAIL("%s: a saved PAC-MAN game that will not continue", where);
+        else check_pac(&t, "saved PAC-MAN game");
+    }
     if(g_save.brightness > 4 || g_save.vsync > 2 || g_save.auto_off > 2 || g_save.shake > 1) FAIL("%s: settings", where);
 }
 
 static void check_round_trip(void)
 {
     // what we write is what we read back, byte for byte
-    static uint8_t a[640], b[640];
+    static uint8_t a[FW_BUF], b[FW_BUF];
     arcsave_t keep = g_arc;
     int n = arcade_save_pack(a, sizeof(a));
     if(!n || !arcade_save_unpack(a, n)) {
@@ -102,6 +149,7 @@ static void check_round_trip(void)
         int n2 = arcade_save_pack(b, sizeof(b));
         if(n2 != n || memcmp(a, b, (size_t)n)) FAIL("arcade.sav changes on a round trip");
         if(g_arc.suspended != keep.suspended) FAIL("the saved game is lost on a round trip");
+        if(g_arc.pac_suspended != keep.pac_suspended) FAIL("the saved PAC-MAN game is lost on a round trip");
     }
     g_arc = keep;
     uint8_t q[256];
@@ -153,7 +201,7 @@ static void boot(uint32_t seed, const uint8_t *qb, int qn, const uint8_t *ab, in
 
 static void reboot(uint32_t seed)
 {
-    static uint8_t q[256], a[640];
+    static uint8_t q[256], a[FW_BUF];
     int qn = save_pack(q, sizeof(q));
     int an = arcade_save_pack(a, sizeof(a));
     boot(seed, q, qn, a, an);
@@ -162,16 +210,17 @@ static void reboot(uint32_t seed)
 static void monkey(long frames)
 {
     boot(rnd32(), NULL, 0, NULL, 0);
-    long reboots = 0, apps[3] = { 0 }, games = 0, played = 0;
-    int last_st = -1;
+    long reboots = 0, apps[4] = { 0 }, games = 0, played = 0, pac_played = 0, pac_games = 0;
+    int last_st = -1, last_pst = -1;
     for(long f = 0; f < frames; f++) {
         s_ms += 33;
         uint64_t k = monkey_keys();
         // now and then, play properly for a while, so games get long and records get set
         if(arcade_app() == APP_TETRIS && (f / 3000) % 3 == 2) k = tetris_bot_keys(1) | (k & KEYBIT(K_POWER));
+        if(arcade_app() == APP_PAC && (f / 3000) % 3 == 2 && pac_debug_screen() == 3) k = pac_bot_keys() | (k & KEYBIT(K_POWER));
         uint32_t ev = arcade_frame(k);
         int app = arcade_app();
-        if(app < 0 || app > 2) FAIL("app %d", app);
+        if(app < 0 || app > 3) FAIL("app %d", app);
         else apps[app]++;
         if(ev & ~(uint32_t)(EV_SAVE | EV_SYSTEM | EV_POWEROFF | EV_BRIGHT | EV_VSYNC | EV_SAVE_ARCADE)) {
             FAIL("unexpected event bits 0x%x", ev);
@@ -188,6 +237,15 @@ static void monkey(long frames)
             if(st == 4 && last_st != 4) games++;
             last_st = st;
         }
+        if(app == APP_PAC) {
+            int st = pac_debug_screen();
+            if(st == 3) {
+                pac_played++;
+                check_pac(pac_debug_game(), "playing PAC-MAN");
+            }
+            if(st == 3 && last_pst != 3) pac_games++;
+            last_pst = st;
+        }
         if((f & 255) == 0) {
             check_saved_state("monkey");
             check_round_trip();
@@ -199,9 +257,9 @@ static void monkey(long frames)
             check_saved_state("after a reboot");
         }
     }
-    printf("      monkey: %ld frames, home %ld / quasar %ld / tetris %ld, %ld tetris games started, "
-           "%ld frames of tetris play, %ld reboots, %u records saved\n",
-           frames, apps[0], apps[1], apps[2], games, played, reboots, g_arc.plays);
+    printf("      monkey: %ld frames, home %ld / quasar %ld / tetris %ld / pac-man %ld, %ld tetris games started, "
+           "%ld frames of tetris play, %ld pac-man games entered, %ld frames of pac-man play, %ld reboots\n",
+           frames, apps[0], apps[1], apps[2], apps[3], games, played, pac_games, pac_played, reboots);
 }
 
 // ------------------------------------------------------------------ damaged saves
@@ -231,26 +289,34 @@ static void save_fuzz(int rounds)
         arcade_frame(tetris_bot_keys(1));
     }
     for(int i = 0; i < 45; i++) arcade_frame(KEYBIT(K_POWER));
-    static uint8_t good[640], bad[2048];
+    arcade_debug_start(GAME_PAC, PM_NEON);
+    for(int i = 0; i < 1500; i++) {
+        s_ms += 33;
+        arcade_frame(pac_bot_keys());
+    }
+    for(int i = 0; i < 45; i++) arcade_frame(KEYBIT(K_POWER));
+    static uint8_t good[FW_BUF], bad[2048];
     int n = arcade_save_pack(good, sizeof(good));
-    if(!g_arc.suspended) FAIL("fuzz: no paused game to start from");
+    if(!g_arc.suspended || !g_arc.pac_suspended) FAIL("fuzz: no paused games to start from");
+    int pac_body = 4 + PM_MODES * TREC_N * (NAME_LEN + 7) + 1 + PAC_PACK_LEN;
     int body = 4 + 1 + 2 + 6 + NAME_LEN + 8 + TM_COUNT * TREC_N * (NAME_LEN + 7);
     int susp = body + 4, susp_len = 4 + 1 + TET_PACK_LEN;
     uint8_t q[256];
     int qn = save_pack(q, sizeof(q));
-    long loaded = 0, continued = 0;
+    long loaded = 0, continued = 0, pac_continued = 0;
     for(int r = 0; r < rounds; r++) {
         int len = n;
         memcpy(bad, good, (size_t)n);
-        int kind = rnd_n(10);
+        int kind = rnd_n(12);
         int flips = 1 + rnd_n(6);
         for(int i = 0; i < flips; i++) {
-            int at = kind < 5 ? susp + 5 + rnd_n(TET_PACK_LEN) : rnd_n(n);      // mostly inside the paused game
+            // mostly inside the paused games
+            int at = kind < 4 ? susp + 5 + rnd_n(TET_PACK_LEN) : (kind < 8 ? PAC_AT + 6 + rnd_n(pac_body) : rnd_n(n));
             if(rnd_n(2)) bad[at] ^= (uint8_t)(1u << rnd_n(8));
             else bad[at] = (uint8_t)rnd32();
         }
-        if(kind == 9) len = rnd_n(n + 1);
-        if(kind == 8) {
+        if(kind == 11) len = rnd_n(n + 1);
+        if(kind == 10) {
             len = n + rnd_n(600);
             for(int i = n; i < len; i++) bad[i] = (uint8_t)rnd32();
         }
@@ -258,6 +324,7 @@ static void save_fuzz(int rounds)
         if(rnd_n(4)) {
             put32(bad + body, crc32(bad, body));
             put32(bad + susp + susp_len, crc32(bad + susp, susp_len));
+            put32(bad + PAC_AT + 6 + pac_body, crc32(bad + PAC_AT, 6 + pac_body));
         }
         gfx_set_target(fb);
         arcade_init(rnd32());
@@ -272,7 +339,7 @@ static void save_fuzz(int rounds)
             for(int i = 0; i < 4; i++) arcade_frame(0);
             for(int i = 0; i < 3; i++) arcade_frame(KEYBIT(K_ENTER));
             if(had) continued++;
-            for(int i = 0; i < 300; i++) {
+            for(int i = 0; i < 150; i++) {
                 s_ms += 33;
                 uint32_t ev = arcade_frame(monkey_keys());
                 if(arcade_app() == APP_TETRIS) {
@@ -283,8 +350,20 @@ static void save_fuzz(int rounds)
                 }
                 if(ev & EV_POWEROFF) break;
             }
+            // the same for PAC-MAN
+            had = g_arc.pac_suspended;
+            arcade_debug_start(GAME_PAC, -1);
+            for(int i = 0; i < 4; i++) arcade_frame(0);
+            for(int i = 0; i < 3; i++) arcade_frame(KEYBIT(K_ENTER));
+            if(had) pac_continued++;
+            for(int i = 0; i < 150; i++) {
+                s_ms += 33;
+                uint32_t ev = arcade_frame(monkey_keys());
+                if(arcade_app() == APP_PAC && pac_debug_screen() == 3) check_pac(pac_debug_game(), "fuzzed PAC-MAN game");
+                if(ev & EV_POWEROFF) break;
+            }
             check_saved_state("fuzzed file, played");
-        } else if(!name_ok(g_arc.name) || g_arc.suspended) {
+        } else if(!name_ok(g_arc.name) || g_arc.suspended || g_arc.pac_suspended) {
             FAIL("fuzz: a refused file still changed the state");
         }
     }
@@ -304,8 +383,8 @@ static void save_fuzz(int rounds)
             for(int i = 0; i < 200; i++) arcade_frame(monkey_keys());
         }
     }
-    printf("      save fuzz: %d damaged arcade.sav files, %ld accepted (%ld with a game to continue), "
-           "%d damaged quasar.sav, %ld accepted\n", rounds, loaded, continued, rounds / 4, qloaded);
+    printf("      save fuzz: %d damaged arcade.sav files, %ld accepted (%ld with a TETRIS game to continue, %ld PAC-MAN), "
+           "%d damaged quasar.sav, %ld accepted\n", rounds, loaded, continued, pac_continued, rounds / 4, qloaded);
 }
 
 // ------------------------------------------------------------------ the rules under random play
@@ -371,6 +450,47 @@ static void rules_fuzz(long frames)
            frames, games, lines, clears, s_tetrises, s_tspins);
 }
 
+static void pac_rules_fuzz(long frames)
+{
+    // the demo player most of the time, random keys in bursts, and a suspend and
+    // resume now and then: every frame must leave a sound game
+    pgame_t g;
+    pai_t ai;
+    memset(&ai, 0, sizeof(ai));
+    pac_new(&g, rnd_n(PM_MODES), rnd32());
+    long games = 0, levels = 0, resumes = 0;
+    uint32_t last_score = 0;
+    for(long f = 0; f < frames; f++) {
+        uint32_t k = (f / 1500) % 5 == 4 ? (uint32_t)rnd_n(32) : pac_ai_keys(&g, &ai);
+        if(rnd_n(12) == 0) k ^= 1u << rnd_n(5);
+        uint32_t ev = pac_step(&g, k);
+        check_pac(&g, "pac rules");
+        if(g.score < last_score) FAIL("pac rules: the score went down");
+        last_score = g.score;
+        levels += (ev & PE_LEVEL) != 0;
+        if(g.over) {
+            if(pac_step(&g, k) != 0) FAIL("pac rules: a finished game still moves");
+            games++;
+            pac_new(&g, rnd_n(PM_MODES), rnd32());
+            memset(&ai, 0, sizeof(ai));
+            last_score = 0;
+        }
+        if(rnd_n(3000) == 0 && g.phase != PP_OVER && g.phase != PP_CLEAR && g.phase != PP_DYING) {
+            pgame_t t;
+            uint8_t buf[PAC_PACK_LEN];
+            if(pac_pack(&g, buf, sizeof(buf)) != PAC_PACK_LEN || !pac_unpack(&t, buf, PAC_PACK_LEN)) {
+                FAIL("pac rules: a game at frame %ld does not suspend", f);
+            } else if(t.score != g.score || t.dots_left != g.dots_left || t.level != g.level || t.lives != g.lives) {
+                FAIL("pac rules: a resumed game is not the same");
+            } else {
+                g = t;
+                resumes++;
+            }
+        }
+    }
+    printf("      pac-man rules fuzz: %ld frames, %ld games, %ld levels cleared, %ld suspends\n", frames, games, levels, resumes);
+}
+
 int main(int argc, char **argv)
 {
     long frames = argc > 1 ? atol(argv[1]) : 400000;
@@ -379,6 +499,7 @@ int main(int argc, char **argv)
     monkey(frames);
     save_fuzz((int)(frames / 200 > 200 ? frames / 200 : 200));
     rules_fuzz(frames * 2);
+    pac_rules_fuzz(frames);
     printf(s_fail ? "\n%d check(s) FAILED\n" : "\nall fuzz checks passed\n", s_fail);
     return s_fail ? 1 : 0;
 }

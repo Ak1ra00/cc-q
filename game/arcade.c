@@ -18,6 +18,8 @@ static px_t s_reveal_col;
 // layout: magic(4) version(1) len(2) options(6) name(10) plays(4) lines(4)
 // records(3 x 5 x 17) crc(4), then a paused game as a block of its own:
 // magic(4) len(1) game crc(4). A damaged paused game only loses CONTINUE.
+// Then PAC-MAN's block, added in 1.4 (older versions stop reading before it):
+// magic(4) len(2) plays(4) records(2 x 5 x 17) paused(1) game(160) crc(4).
 
 #define ARC_MAGIC       0x31524151u     // "QAR1"
 #define ARC_VERSION     1
@@ -26,6 +28,10 @@ static px_t s_reveal_col;
 #define SUSP_MAGIC      0x31535451u     // "QTS1"
 #define SUSP_LEN        (4 + 1 + TET_PACK_LEN)
 #define ARC_TOTAL       (BODY_LEN + 4 + SUSP_LEN + 4)
+#define PAC_MAGIC       0x314d5051u     // "QPM1"
+#define PAC_BODY        (4 + PM_MODES * TREC_N * REC_LEN + 1 + PAC_PACK_LEN)
+#define PAC_BLOCK       (4 + 2 + PAC_BODY + 4)
+#define ARC_ALL         (ARC_TOTAL + PAC_BLOCK)
 
 static const char *const REC_NAMES[TREC_N] = { "STACKER", "SPINNER", "DROPPER", "HOLDER", "ROOKIE" };
 static const uint32_t REC_DEFAULT[TM_COUNT][TREC_N] = {
@@ -33,6 +39,28 @@ static const uint32_t REC_DEFAULT[TM_COUNT][TREC_N] = {
     { 120 * FPS, 150 * FPS, 180 * FPS, 240 * FPS, 300 * FPS },
     { 30000, 22000, 15000, 9000, 4000 },
 };
+
+static const char *const PAC_NAMES[TREC_N] = { "BLINKY", "PINKY", "INKY", "CLYDE", "SUE" };
+static const uint32_t PAC_DEFAULT[PM_MODES][TREC_N] = {
+    { 30000, 20000, 12000, 8000, 4000 },
+    { 40000, 28000, 18000, 10000, 5000 },
+};
+
+static void pac_defaults(arcsave_t *a)
+{
+    a->pac_plays = 0;
+    a->pac_suspended = false;
+    memset(a->pac_susp, 0, sizeof(a->pac_susp));
+    for(int m = 0; m < PM_MODES; m++) {
+        for(int i = 0; i < TREC_N; i++) {
+            trec_t *r = &a->pac_rec[m][i];
+            memset(r, 0, sizeof(*r));
+            strcpy(r->name, PAC_NAMES[i]);
+            r->value = PAC_DEFAULT[m][i];
+            r->level = (uint8_t)(5 - i);
+        }
+    }
+}
 
 void arcsave_defaults(void)
 {
@@ -50,6 +78,7 @@ void arcsave_defaults(void)
             r->level = (uint8_t)(m == TM_MARATHON ? 7 - i : 1);
         }
     }
+    pac_defaults(&g_arc);
 }
 
 static uint32_t crc32(const uint8_t *p, int n)
@@ -91,9 +120,40 @@ static void get_name(char *dst, const uint8_t *p)
     dst[NAME_LEN] = 0;
 }
 
+static uint8_t *put_rec(uint8_t *p, const trec_t *r)
+{
+    put_name(p, r->name);
+    put32(p + NAME_LEN, r->value);
+    p[NAME_LEN + 4] = (uint8_t)r->lines;
+    p[NAME_LEN + 5] = (uint8_t)(r->lines >> 8);
+    p[NAME_LEN + 6] = r->level;
+    return p + REC_LEN;
+}
+
+static const uint8_t *get_rec(const uint8_t *p, trec_t *r, int max_level)
+{
+    get_name(r->name, p);
+    r->value = get32(p + NAME_LEN);
+    r->lines = (uint16_t)(p[NAME_LEN + 4] | (p[NAME_LEN + 5] << 8));
+    r->level = p[NAME_LEN + 6] > max_level ? 1 : p[NAME_LEN + 6];
+    return p + REC_LEN;
+}
+
+static void sort_high(trec_t *t)
+{
+    // best first
+    for(int i = 1; i < TREC_N; i++) {
+        for(int j = i; j > 0 && t[j].value > t[j - 1].value; j--) {
+            trec_t tmp = t[j];
+            t[j] = t[j - 1];
+            t[j - 1] = tmp;
+        }
+    }
+}
+
 int arcade_save_pack(uint8_t *buf, int max)
 {
-    if(max < ARC_TOTAL) return 0;
+    if(max < ARC_ALL) return 0;
     uint8_t *p = buf;
     put32(p, ARC_MAGIC);
     p += 4;
@@ -112,15 +172,7 @@ int arcade_save_pack(uint8_t *buf, int max)
     put32(p + 4, g_arc.lines);
     p += 8;
     for(int m = 0; m < TM_COUNT; m++) {
-        for(int i = 0; i < TREC_N; i++) {
-            const trec_t *r = &g_arc.rec[m][i];
-            put_name(p, r->name);
-            put32(p + NAME_LEN, r->value);
-            p[NAME_LEN + 4] = (uint8_t)r->lines;
-            p[NAME_LEN + 5] = (uint8_t)(r->lines >> 8);
-            p[NAME_LEN + 6] = r->level;
-            p += REC_LEN;
-        }
+        for(int i = 0; i < TREC_N; i++) p = put_rec(p, &g_arc.rec[m][i]);
     }
     put32(p, crc32(buf, BODY_LEN));
     p += 4;
@@ -132,7 +184,23 @@ int arcade_save_pack(uint8_t *buf, int max)
         memcpy(s + 5, g_arc.susp, TET_PACK_LEN);
         put32(s + SUSP_LEN, crc32(s, SUSP_LEN));
     }
-    return ARC_TOTAL;
+    // PAC-MAN
+    uint8_t *q = buf + ARC_TOTAL;
+    put32(q, PAC_MAGIC);
+    q[4] = (uint8_t)PAC_BODY;
+    q[5] = (uint8_t)(PAC_BODY >> 8);
+    p = q + 6;
+    put32(p, g_arc.pac_plays);
+    p += 4;
+    for(int m = 0; m < PM_MODES; m++) {
+        for(int i = 0; i < TREC_N; i++) p = put_rec(p, &g_arc.pac_rec[m][i]);
+    }
+    *p++ = g_arc.pac_suspended ? 1 : 0;
+    memcpy(p, g_arc.pac_susp, PAC_PACK_LEN);
+    if(!g_arc.pac_suspended) memset(p, 0, PAC_PACK_LEN);
+    p += PAC_PACK_LEN;
+    put32(p, crc32(q, 6 + PAC_BODY));
+    return ARC_ALL;
 }
 
 bool arcade_save_unpack(const uint8_t *buf, int len)
@@ -155,14 +223,7 @@ bool arcade_save_unpack(const uint8_t *buf, int len)
     a.lines = get32(p + 4);
     p += 8;
     for(int m = 0; m < TM_COUNT; m++) {
-        for(int i = 0; i < TREC_N; i++) {
-            trec_t *r = &a.rec[m][i];
-            get_name(r->name, p);
-            r->value = get32(p + NAME_LEN);
-            r->lines = (uint16_t)(p[NAME_LEN + 4] | (p[NAME_LEN + 5] << 8));
-            r->level = p[NAME_LEN + 6] > MAX_LEVEL ? 1 : p[NAME_LEN + 6];
-            p += REC_LEN;
-        }
+        for(int i = 0; i < TREC_N; i++) p = get_rec(p, &a.rec[m][i], MAX_LEVEL);
     }
     // each table in order, best first (an empty sprint slot, 0, goes last)
     for(int m = 0; m < TM_COUNT; m++) {
@@ -188,6 +249,24 @@ bool arcade_save_unpack(const uint8_t *buf, int len)
             a.suspended = true;
         }
     }
+    // PAC-MAN's block: missing (an older file) or damaged, it starts afresh
+    pac_defaults(&a);
+    const uint8_t *q = buf + ARC_TOTAL;
+    if(len >= ARC_ALL && get32(q) == PAC_MAGIC && (q[4] | (q[5] << 8)) == PAC_BODY &&
+       get32(q + 6 + PAC_BODY) == crc32(q, 6 + PAC_BODY)) {
+        p = q + 6;
+        a.pac_plays = get32(p);
+        p += 4;
+        for(int m = 0; m < PM_MODES; m++) {
+            for(int i = 0; i < TREC_N; i++) p = get_rec(p, &a.pac_rec[m][i], PAC_MAX_LEVEL);
+            sort_high(a.pac_rec[m]);
+        }
+        pgame_t probe;
+        if(*p == 1 && pac_unpack(&probe, p + 1, PAC_PACK_LEN)) {
+            memcpy(a.pac_susp, p + 1, PAC_PACK_LEN);
+            a.pac_suspended = true;
+        }
+    }
     g_arc = a;
     return true;
 }
@@ -200,6 +279,26 @@ int trec_rank(int mode, uint32_t value)
         if(mode == TM_SPRINT ? (v == 0 || value < v) : value > v) return i;
     }
     return -1;
+}
+
+int prec_rank(int mode, uint32_t score)
+{
+    if(!score || mode < 0 || mode >= PM_MODES) return -1;
+    for(int i = 0; i < TREC_N; i++) {
+        if(score > g_arc.pac_rec[mode][i].value) return i;
+    }
+    return -1;
+}
+
+void prec_insert(int mode, int rank, const char *name, uint32_t score, int level)
+{
+    if(rank < 0 || rank >= TREC_N || mode < 0 || mode >= PM_MODES) return;
+    trec_t *t = g_arc.pac_rec[mode];
+    for(int i = TREC_N - 1; i > rank; i--) t[i] = t[i - 1];
+    memset(&t[rank], 0, sizeof(t[rank]));
+    strncpy(t[rank].name, name, NAME_LEN);
+    t[rank].value = score;
+    t[rank].level = (uint8_t)level;
 }
 
 void trec_insert(int mode, int rank, const char *name, uint32_t value, int lines, int level)
@@ -216,7 +315,7 @@ void trec_insert(int mode, int rank, const char *name, uint32_t value, int lines
 
 // ------------------------------------------------------------------ scene changes
 
-const px_t GAME_COL[NUM_GAMES] = { COL(190, 90, 255), COL(40, 190, 255) };
+const px_t GAME_COL[NUM_GAMES] = { COL(190, 90, 255), COL(40, 190, 255), COL(255, 200, 20) };
 
 static void reveal_start(px_t col)
 {
@@ -246,9 +345,14 @@ static void reveal_draw(void)
     if(!any) s_reveal_t = -1;
 }
 
+static int app_of(int game)
+{
+    return game == GAME_TETRIS ? APP_TETRIS : (game == GAME_PAC ? APP_PAC : APP_QUASAR);
+}
+
 void arcade_start(int game)
 {
-    s_pending = game == GAME_TETRIS ? APP_TETRIS : APP_QUASAR;
+    s_pending = app_of(game);
     if(g_arc.last_game != game) {
         g_arc.last_game = (uint8_t)game;
         g_events |= EV_SAVE_ARCADE;
@@ -274,9 +378,12 @@ static void switch_now(void)
     } else if(to == APP_QUASAR) {
         game_set_state(ST_TITLE);
         reveal_start(GAME_COL[GAME_QUASAR]);
-    } else {
+    } else if(to == APP_TETRIS) {
         tetris_enter();
         reveal_start(GAME_COL[GAME_TETRIS]);
+    } else {
+        pac_enter();
+        reveal_start(GAME_COL[GAME_PAC]);
     }
 }
 
@@ -288,10 +395,11 @@ int arcade_app(void)
 void arcade_debug_start(int game, int mode)
 {
     g_arc.last_game = (uint8_t)game;
-    s_pending = game == GAME_TETRIS ? APP_TETRIS : APP_QUASAR;
+    s_pending = app_of(game);
     switch_now();
     s_reveal_t = -1;
     if(game == GAME_TETRIS && mode >= 0) tetris_debug_start(mode);
+    if(game == GAME_PAC && mode >= 0) pac_debug_start(mode);
 }
 
 // ------------------------------------------------------------------ frame loop
@@ -301,6 +409,7 @@ void arcade_init(uint32_t seed)
     game_init(seed);
     arcsave_defaults();
     ar_tiles_init();
+    pac_ui_init();
     s_app = APP_HOME;
     s_pending = -1;
     s_reveal_t = -1;
@@ -318,7 +427,7 @@ bool arcade_wants_idle_off(void)
     // the AUTO OFF time without a key press, never in the middle of a game
     static const int minutes[3] = { 10, 30, 0 };
     int m = minutes[g_save.auto_off > 2 ? 0 : g_save.auto_off];
-    return m && s_idle > 30 * 60 * m && !(s_app == APP_TETRIS && tetris_in_play());
+    return m && s_idle > 30 * 60 * m && !(s_app == APP_TETRIS && tetris_in_play()) && !(s_app == APP_PAC && pac_in_play());
 }
 
 uint32_t arcade_frame(uint64_t keys)
@@ -339,21 +448,27 @@ uint32_t arcade_frame(uint64_t keys)
 
         // power key: tap pauses a game, hold switches off
         if(g_in.power_hold == 1 && s_app == APP_TETRIS) tetris_power_tap();
+        if(g_in.power_hold == 1 && s_app == APP_PAC) pac_power_tap();
         if(g_in.power_hold == 40) {
             if(s_app == APP_TETRIS) tetris_before_off();
+            if(s_app == APP_PAC) pac_before_off();
             g_events |= EV_POWEROFF | EV_SAVE | EV_SAVE_ARCADE;
         }
 
         if(s_app == APP_HOME) {
             home_update();
             home_draw();
-        } else {
+        } else if(s_app == APP_TETRIS) {
             tetris_update();
             tetris_draw();
+        } else {
+            pac_update();
+            pac_draw();
         }
         // the host switches off after this frame: keep a game or a new record
-        if(arcade_wants_idle_off() && s_app == APP_TETRIS) {
-            tetris_before_off();
+        if(arcade_wants_idle_off() && s_app != APP_HOME) {
+            if(s_app == APP_TETRIS) tetris_before_off();
+            else pac_before_off();
             g_events |= EV_SAVE_ARCADE;
         }
         ev = g_events;

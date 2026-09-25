@@ -14,7 +14,7 @@ from micropython import const
 import quasar, qhw
 
 SAVE_FILE = '/flash/quasar.sav'         # QUASAR, and the settings every game shares
-ARCADE_FILE = '/flash/arcade.sav'       # the home screen and TETRIS
+ARCADE_FILE = '/flash/arcade.sav'       # the home screen, TETRIS and PAC-MAN
 
 EV_SAVE = const(0x01)
 EV_SYSTEM = const(0x02)
@@ -48,7 +48,7 @@ def load():
         pass            # first run: defaults
     try:
         with open(ARCADE_FILE, 'rb') as f:
-            quasar.arcade_load(f.read(2048))        # a real one is under 640 bytes
+            quasar.arcade_load(f.read(2048))        # a real one is under 1 KB
     except OSError:
         pass
 

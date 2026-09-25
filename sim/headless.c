@@ -4,11 +4,12 @@
 //
 //   quasar_headless [--frames N] [--shot F[,F...]] [--out DIR] [--bot]
 //                   [--stage S] [--diff D] [--seed X] [--keys "F:KEY,..."]
-//                   [--quasar] [--tetris MODE]
+//                   [--quasar] [--tetris MODE] [--pac MODE]
 //
 //   --stage S     QUASAR on its own, as before the home screen, from stage S
 //   --quasar      QUASAR on its own, from its title
 //   --tetris M    TETRIS, a game of mode M (0 marathon, 1 sprint, 2 ultra; -1 its menu)
+//   --pac M       PAC-MAN, a game of mode M (0 classic, 1 neon; -1 its menu)
 //
 #include <stdio.h>
 #include <stdlib.h>
@@ -162,9 +163,9 @@ static uint64_t bot_keys(int frame)
 
 int main(int argc, char **argv)
 {
-    int frames = 300, stage = 0, diff = 1, tetris = -2;
+    int frames = 300, stage = 0, diff = 1, tetris = -2, pac = -2;
     uint32_t seed = 12345;
-    bool bot = false, quasar_only = false;
+    bool bot = false, quasar_only = false, trace = false;
     const char *out = ".";
     char shots[4096] = "";
 
@@ -179,6 +180,8 @@ int main(int argc, char **argv)
         else if(!strcmp(argv[i], "--keys") && i + 1 < argc) parse_script(argv[++i]);
         else if(!strcmp(argv[i], "--quasar")) quasar_only = true;
         else if(!strcmp(argv[i], "--tetris") && i + 1 < argc) tetris = atoi(argv[++i]);
+        else if(!strcmp(argv[i], "--pac") && i + 1 < argc) pac = atoi(argv[++i]);
+        else if(!strcmp(argv[i], "--trace")) trace = true;
     }
     // QUASAR's own frame loop, exactly as it ran before the home screen existed
     bool direct = quasar_only || stage > 0;
@@ -190,6 +193,7 @@ int main(int argc, char **argv)
     } else {
         arcade_init(seed);
         if(tetris >= -1) arcade_debug_start(GAME_TETRIS, tetris);
+        if(pac >= -1) arcade_debug_start(GAME_PAC, pac);
     }
 
     int shot_list[512], nshots = 0;
@@ -204,8 +208,18 @@ int main(int argc, char **argv)
         for(int i = 0; i < s_nscript; i++) {
             if(f >= s_script[i].frame && f < s_script[i].frame + s_script[i].len) keys |= s_script[i].keys;
         }
-        if(bot) keys |= arcade_app() == APP_TETRIS && !direct ? tetris_bot_keys(1) : bot_keys(f);
+        if(bot) {
+            if(!direct && arcade_app() == APP_TETRIS) keys |= tetris_bot_keys(1);
+            else if(!direct && arcade_app() == APP_PAC) keys |= pac_bot_keys();
+            else keys |= bot_keys(f);
+        }
+        int phase0 = !direct && arcade_app() == APP_PAC ? pac_debug_game()->phase : -1;
         uint32_t ev = direct ? game_frame(keys) : arcade_frame(keys);
+        if(trace && phase0 >= 0 && arcade_app() == APP_PAC && pac_debug_game()->phase != phase0) {
+            const pgame_t *g = pac_debug_game();
+            printf("frame %d: phase %d -> %d  level %d lives %d score %u screen %d\n", f, phase0, g->phase, g->level,
+                   g->lives, g->score, pac_debug_screen());
+        }
         ev_all |= ev;
         int ne = eshots_count();
         if(ne > max_eshots) max_eshots = ne;
@@ -225,6 +239,14 @@ int main(int argc, char **argv)
         int lines, level;
         bool over;
         int st = arcade_app() == APP_TETRIS ? tetris_debug(&score, &lines, &level, &over) : -1;
+        if(arcade_app() == APP_PAC) {
+            const pgame_t *g = pac_debug_game();
+            st = pac_debug_screen();
+            score = g->score;
+            lines = g->lives;
+            level = g->level;
+            over = g->over;
+        }
         printf("frames=%d app=%d screen=%d score=%u lines=%d level=%d over=%d events=0x%llx host_ms_per_frame=%.3f\n",
                frames, arcade_app(), st, st >= 0 ? score : 0, st >= 0 ? lines : 0, st >= 0 ? level : 0,
                st >= 0 ? over : 0, ev_all, secs * (double)1000 / (double)frames);

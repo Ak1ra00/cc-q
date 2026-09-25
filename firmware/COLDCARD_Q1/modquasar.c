@@ -366,10 +366,10 @@ STATIC mp_obj_t q_load_blob(mp_obj_t b_in)
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(q_load_blob_obj, q_load_blob);
 
-// the home screen's and TETRIS's own save (arcade.sav), apart from QUASAR's
+// the home screen's, TETRIS's and PAC-MAN's own save (arcade.sav), apart from QUASAR's
 STATIC mp_obj_t q_arcade_blob(void)
 {
-    static uint8_t buf[640];
+    static uint8_t buf[1024];
     int n = arcade_save_pack(buf, sizeof(buf));
     return mp_obj_new_bytes(buf, n);
 }

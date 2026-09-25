@@ -4,7 +4,7 @@
 // zooms up to fill the screen, then the game opens behind a wave of blocks).
 // DOWN reaches SETTINGS (brightness, sync, auto off and shake, shared with
 // every game) and SYSTEM. Adding a game means a theme, a card and a line in
-// arcade_start().
+// arcade.c's app_of().
 #include "arcade.h"
 #include <string.h>
 
@@ -20,6 +20,8 @@ static const theme_t THEMES[NUM_GAMES] = {
       "QUASAR", "SHOOT-'EM-UP  " G_DOT "  FIVE STAGES  " G_DOT "  FIVE BOSSES" },
     { COL(2, 8, 26), COL(8, 52, 100), COL(2, 8, 22), COL(40, 190, 255), COL(95, 225, 255), COL(20, 100, 190),
       "TETRIS", "MARATHON  " G_DOT "  SPRINT 40  " G_DOT "  ULTRA 2:00" },
+    { COL(14, 6, 2), COL(84, 44, 4), COL(12, 5, 1), COL(255, 190, 30), COL(255, 222, 70), COL(170, 100, 10),
+      "PAC-MAN", "CLASSIC  " G_DOT "  NEON  " G_DOT "  THREE MAZES" },
 };
 
 #define CARD_W      188
@@ -265,11 +267,18 @@ static void card_caption(int x, int y, int w, int h, int game)
             fmt_int(buf + strlen(buf), g_save.run.stage);
             badge = buf;
         }
-    } else {
+    } else if(game == GAME_TETRIS) {
         strcpy(left, "BEST ");
         fmt_commas(buf, g_arc.rec[TM_MARATHON][0].value);
         str_cat(left, buf);
         if(g_arc.suspended) badge = "PAUSED GAME";
+    } else {
+        strcpy(left, "BEST ");
+        uint32_t b = g_arc.pac_rec[PM_CLASSIC][0].value;
+        if(g_arc.pac_rec[PM_NEON][0].value > b) b = g_arc.pac_rec[PM_NEON][0].value;
+        fmt_commas(buf, b);
+        str_cat(left, buf);
+        if(g_arc.pac_suspended) badge = "PAUSED GAME";
     }
     text_draw(x + 5, y + h - 11, left, COL(190, 200, 230), 1);
     if(badge) text_right(x + w - 5, y + h - 11, badge, (g_arc_t & 16) ? C_GOLD : COL(200, 160, 60), 1, 0);
@@ -279,7 +288,8 @@ static void draw_card(int game, int x, int y, int w, int h, int t)
 {
     gfx_clip(x, y, x + w, y + h);
     if(game == GAME_QUASAR) card_quasar(x, y, w, h, t);
-    else card_tetris(x, y, w, h, t);
+    else if(game == GAME_TETRIS) card_tetris(x, y, w, h, t);
+    else pac_card_draw(x, y, w, h, t);
     card_caption(x, y, w, h, game);
     gfx_noclip();
 }
@@ -487,9 +497,11 @@ static void launch_draw(void)
     gfx_glow(x + w / 2, y + h / 2, 30 + w / 5, px_scale(th->glow, 20));
     if(game == GAME_QUASAR) {
         gfx_sprite_rot(&SPR_LOGO, x + w / 2, y + h / 2, 0, 150 + (106 * e >> 8), NULL, DM_NORMAL, 0);
-    } else {
+    } else if(game == GAME_TETRIS) {
         int s = 4 + (5 * e >> 8);
         ar_tetris_logo(x + w / 2, y + h / 2 - 5 * s / 2, s, -1);
+    } else {
+        pac_logo_draw(x + w / 2, y + h / 2, 110 + (146 * e >> 8), 32);
     }
     ar_neon_rect(x, y, w, h, th->accent, 3);
     if(s_launch_t > LAUNCH_ZOOM) {
@@ -521,9 +533,10 @@ void home_enter(int from_game)
 void home_update(void)
 {
     s_t++;
-    // the TETRIS card plays itself
+    // the TETRIS and PAC-MAN cards play themselves
     tet_step(&s_demo, tet_ai_keys(&s_demo, &s_demo_ai, 3, false));
     if(s_demo.over || s_demo.lines >= 60) demo_reset();
+    if(iabs((GAME_PAC << 8) - s_scroll256) <= 400 || s_state == H_LAUNCH) pac_card_update();
 
     int target = s_sel << 8;
     s_scroll256 += (target - s_scroll256) / 4;

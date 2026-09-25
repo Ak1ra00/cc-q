@@ -17,8 +17,12 @@ uint32_t plat_millis(void) { return s_ms; }
     else { printf("[FAIL] %s  (%s:%d)\n", name, __FILE__, __LINE__); s_fail++; } \
 } while(0)
 
-// T_* screens in tetris_ui.c
+// T_* screens in tetris_ui.c, P_* in pac_ui.c
 enum { T_MENU, T_OPTIONS, T_SCORES, T_HOWTO, T_READY, T_PLAY, T_PAUSE, T_CONFIRM, T_OVER, T_NAME };
+enum { P_MENU, P_SCORES, P_HOWTO, P_PLAY, P_PAUSE, P_CONFIRM, P_OVER, P_NAME };
+
+#define FW_BUF      1024        // q_arcade_blob's buffer in modquasar.c
+#define TETRIS_END  471         // where 1.3's arcade.sav ended: TETRIS's paused game is last
 
 static uint32_t frames(int n, uint64_t keys)
 {
@@ -133,7 +137,7 @@ static void test_suspend_resume(void)
           (ev & EV_POWEROFF) && (ev & EV_SAVE) && (ev & EV_SAVE_ARCADE));
     CHECK("power: the game was kept to continue", g_arc.suspended);
 
-    uint8_t blob[640];
+    uint8_t blob[FW_BUF];
     int n = arcade_save_pack(blob, sizeof(blob));
     CHECK("save: fits the firmware's buffer", n > 0 && n <= (int)sizeof(blob));
     uint8_t qblob[256];
@@ -236,9 +240,9 @@ static void test_damaged_saves(void)
     frames(60, 0);
     play_bot(600);
     frames(45, KEYBIT(K_POWER));
-    uint8_t blob[640];
+    uint8_t blob[FW_BUF];
     int n = arcade_save_pack(blob, sizeof(blob));
-    uint8_t bad[640];
+    uint8_t bad[FW_BUF];
 
     memcpy(bad, blob, (size_t)n);
     bad[20] ^= 0x40;
@@ -246,13 +250,113 @@ static void test_damaged_saves(void)
     CHECK("damaged: a bad record block is refused, defaults stay", !arcade_save_unpack(bad, n) && !g_arc.suspended);
 
     memcpy(bad, blob, (size_t)n);
-    bad[n - 30] ^= 0x01;
+    bad[TETRIS_END - 30] ^= 0x01;
     boot(6);
     CHECK("damaged: a bad paused game only loses CONTINUE", arcade_save_unpack(bad, n) && !g_arc.suspended);
 
     boot(7);
     CHECK("short: an old or cut-off file is refused", !arcade_save_unpack(blob, 40));
-    CHECK("short: without the paused game it still loads", arcade_save_unpack(blob, n - 60) && !g_arc.suspended);
+    CHECK("short: without the paused game it still loads", arcade_save_unpack(blob, TETRIS_END - 60) && !g_arc.suspended);
+    boot(8);
+    CHECK("1.3's file: loads, TETRIS's paused game and all", arcade_save_unpack(blob, TETRIS_END) && g_arc.suspended &&
+          !g_arc.pac_suspended && g_arc.pac_rec[PM_CLASSIC][0].value == 30000);
+
+    memcpy(bad, blob, (size_t)n);
+    bad[n - 20] ^= 0x10;
+    boot(9);
+    CHECK("damaged: a bad PAC-MAN block only loses PAC-MAN's", arcade_save_unpack(bad, n) && g_arc.suspended &&
+          g_arc.pac_rec[PM_NEON][0].value == 40000);
+}
+
+static uint32_t play_pac(int n)
+{
+    uint32_t ev = 0;
+    for(int i = 0; i < n; i++) {
+        s_ms += 33;
+        ev |= arcade_frame(pac_bot_keys());
+    }
+    return ev;
+}
+
+static void test_pac(void)
+{
+    boot(11);
+    frames(30, 0);
+    tap(K_RIGHT);
+    tap(K_RIGHT);
+    frames(10, 0);
+    tap(K_RIGHT);
+    frames(10, 0);
+    uint32_t ev = tap(K_ENTER);
+    ev |= frames(40, 0);
+    CHECK("home: RIGHT twice (and a bump), ENTER opens PAC-MAN", arcade_app() == APP_PAC && pac_debug_screen() == P_MENU);
+    CHECK("home: remembers PAC-MAN as the last game", g_arc.last_game == GAME_PAC && (ev & EV_SAVE_ARCADE));
+    tap(K_ENTER);
+    const pgame_t *g = pac_debug_game();
+    CHECK("pac: CLASSIC starts at READY", pac_debug_screen() == P_PLAY && g->phase == PP_READY && g->mode == PM_CLASSIC);
+    play_pac(1500);
+    CHECK("pac: the demo player is scoring", g->score > 500 && !g->over);
+
+    // tap POWER to pause, hold it to save and switch off
+    tap(K_POWER);
+    CHECK("pac: a tap of POWER pauses", pac_debug_screen() == P_PAUSE);
+    tap(K_CANCEL);
+    frames(25, 0);
+    ev = frames(45, KEYBIT(K_POWER));
+    CHECK("pac: holding POWER saves the game and switches off",
+          (ev & EV_POWEROFF) && (ev & EV_SAVE_ARCADE) && g_arc.pac_suspended);
+    uint32_t sc = g->score;
+    int lv = g->level, lives = g->lives, dots = g->dots_left;
+    uint8_t blob[FW_BUF];
+    int n = arcade_save_pack(blob, sizeof(blob));
+    CHECK("save: with both paused games it still fits", n > TETRIS_END && n <= FW_BUF);
+
+    boot(12);
+    CHECK("load: PAC-MAN's paused game is there", arcade_save_unpack(blob, n) && g_arc.pac_suspended && g_arc.last_game == GAME_PAC);
+    arcade_loaded();
+    frames(30, 0);
+    tap(K_ENTER);
+    frames(40, 0);
+    CHECK("home: opens on PAC-MAN, the last game played", arcade_app() == APP_PAC && pac_debug_screen() == P_MENU);
+    tap(K_ENTER);                           // CONTINUE is selected first
+    CHECK("continue: the same level, score, lives and dots, from READY",
+          pac_debug_screen() == P_PLAY && g->phase == PP_READY && g->score == sc && g->level == lv &&
+          g->lives == lives && g->dots_left == dots);
+    play_pac(300);
+    tap(K_TAB);
+    tap(K_DOWN);
+    tap(K_DOWN);
+    tap(K_DOWN);
+    tap(K_ENTER);                           // END GAME
+    tap(K_UP);
+    tap(K_ENTER);                           // YES
+    CHECK("end game: results, and nothing left to continue", pac_debug_screen() == P_OVER && !g_arc.pac_suspended);
+    frames(80, 0);
+    tap(K_ENTER);
+    frames(5, 0);
+    CHECK("results: ENTER goes back to the menu (no record) or to the name", pac_debug_screen() == P_MENU || pac_debug_screen() == P_NAME);
+}
+
+static void test_pac_idle_record(void)
+{
+    // a record left on the results screen goes on the table when it switches off by itself
+    boot(13);
+    arcade_debug_start(GAME_PAC, PM_NEON);
+    const pgame_t *g = pac_debug_game();
+    for(int i = 0; i < 400 && g->score <= 5000 && !g->over; i++) play_pac(50);
+    tap(K_TAB);
+    tap(K_DOWN);
+    tap(K_DOWN);
+    tap(K_DOWN);
+    tap(K_ENTER);
+    tap(K_UP);
+    tap(K_ENTER);
+    strcpy(g_arc.name, "IDLER");
+    g_save.auto_off = 0;
+    int rank = prec_rank(PM_NEON, g->score);
+    uint32_t ev = frames(30 * 60 * 10 + 5, 0);
+    CHECK("pac idle: auto off keeps the record", rank >= 0 && arcade_wants_idle_off() && (ev & EV_SAVE_ARCADE) &&
+          !strcmp(g_arc.pac_rec[PM_NEON][rank].name, "IDLER") && g_arc.pac_rec[PM_NEON][rank].value == g->score);
 }
 
 static void test_idle_keeps_record(void)
@@ -320,6 +424,8 @@ int main(void)
     test_idle();
     test_idle_keeps_record();
     test_sprint_record();
+    test_pac();
+    test_pac_idle_record();
     printf(s_fail ? "\n%d test(s) FAILED\n" : "\nall arcade tests passed\n", s_fail);
     return s_fail ? 1 : 0;
 }

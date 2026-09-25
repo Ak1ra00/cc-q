@@ -2,17 +2,19 @@
 //
 // The device boots into the home screen, which shows each game as a live card.
 // QUASAR runs exactly as before (game.c and friends); TETRIS lives in
-// tetris.c (the rules) and tetris_ui.c (its screens). arcade.c sits on top of
-// them all: it owns the frame loop, switches between them, and keeps the
-// settings, scores and a paused game that the home screen and TETRIS save in a
-// file of their own (arcade.sav), so QUASAR's save stays exactly as it was.
+// tetris.c (the rules) and tetris_ui.c (its screens), PAC-MAN in pac.c and
+// pac_ui.c. arcade.c sits on top of them all: it owns the frame loop, switches
+// between them, and keeps the settings, scores and paused games that the home
+// screen, TETRIS and PAC-MAN save in a file of their own (arcade.sav), so
+// QUASAR's save stays exactly as it was.
 //
 #pragma once
 #include "game.h"
 #include "tetris.h"
+#include "pac.h"
 
-enum { APP_HOME = 0, APP_QUASAR, APP_TETRIS };
-enum { GAME_QUASAR = 0, GAME_TETRIS, NUM_GAMES };
+enum { APP_HOME = 0, APP_QUASAR, APP_TETRIS, APP_PAC };
+enum { GAME_QUASAR = 0, GAME_TETRIS, GAME_PAC, NUM_GAMES };
 
 #define EV_SAVE_ARCADE  0x20        // arcade.sav changed, please store it
 
@@ -35,6 +37,11 @@ typedef struct {
     trec_t rec[TM_COUNT][TREC_N];   // best marathon and ultra scores, sprint times
     bool suspended;                 // a TETRIS game saved to carry on with
     uint8_t susp[TET_PACK_LEN];
+    // PAC-MAN
+    uint32_t pac_plays;
+    trec_t pac_rec[PM_MODES][TREC_N];   // best CLASSIC and NEON scores
+    bool pac_suspended;
+    uint8_t pac_susp[PAC_PACK_LEN];
 } arcsave_t;
 
 extern arcsave_t g_arc;
@@ -45,6 +52,8 @@ int arcade_save_pack(uint8_t *buf, int max);
 bool arcade_save_unpack(const uint8_t *buf, int len);
 int trec_rank(int mode, uint32_t value);
 void trec_insert(int mode, int rank, const char *name, uint32_t value, int lines, int level);
+int prec_rank(int mode, uint32_t score);
+void prec_insert(int mode, int rank, const char *name, uint32_t score, int level);
 
 // ---------------------------------------------------------------- top level
 void arcade_init(uint32_t seed);
@@ -68,6 +77,18 @@ bool tetris_in_play(void);          // a game is running (not paused, not on a m
 void tetris_before_off(void);       // keep a game or a new record before switching off
 void tetris_power_tap(void);
 
+// ---------------------------------------------------------------- pac_ui.c
+void pac_ui_init(void);
+void pac_enter(void);
+void pac_update(void);
+void pac_draw(void);
+bool pac_in_play(void);
+void pac_before_off(void);
+void pac_power_tap(void);
+void pac_card_update(void);                                 // the home screen's live card
+void pac_card_draw(int x, int y, int w, int h, int t);
+void pac_logo_draw(int cx, int cy, int scale256, int k32);  // the neon logo, any size
+
 // ---------------------------------------------------------------- for the desktop build's tests
 int arcade_app(void);
 void arcade_debug_start(int game, int mode);        // straight in, no animation; mode < 0: TETRIS menu
@@ -75,6 +96,10 @@ uint64_t tetris_bot_keys(int pace);                 // the demo player's keys, a
 void tetris_debug_start(int mode);
 int tetris_debug(uint32_t *score, int *lines, int *level, bool *over);     // returns the screen
 const tgame_t *tetris_debug_game(void);
+void pac_debug_start(int mode);
+uint64_t pac_bot_keys(void);
+const pgame_t *pac_debug_game(void);
+int pac_debug_screen(void);
 
 // ---------------------------------------------------------------- shared drawing
 extern const px_t PIECE_COL[PC_KINDS];
