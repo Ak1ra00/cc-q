@@ -7,7 +7,7 @@
 #include "text.h"
 #include "assets_gen.h"
 
-#define QUASAR_VERSION  "1.3.0"
+#define QUASAR_VERSION  "1.3.1"
 #define FPS             30
 
 // ---------------------------------------------------------------- keys

@@ -463,6 +463,9 @@ static void draw_field(bool hide)
     gfx_rect(x0 - 1, y0 - 1, FW + 2, FH + 2, px_scale(edge, 10));
     if(hide) return;
 
+    // everything in the well stays inside it: pieces slide in from behind the top edge
+    gfx_clip(x0, y0, x0 + FW, y0 + FH);
+
     // the stack; rows being cleared flash, then vanish from the middle out
     int phase = CLEAR_FRAMES - s_g.wait;
     for(int y = TB_HIDDEN - 1; y < TB_H; y++) {
@@ -502,7 +505,6 @@ static void draw_field(bool hide)
         int glow = s_g.lock_t ? s_g.lock_t * 12 / LOCK_DELAY : 0;
         for(int i = 0; i < 4; i++) {
             int sx = cell_sx(s_g.x + c[i][0]), sy = cell_sy(s_g.y + c[i][1]);
-            if(sy + CS <= 0) continue;
             ar_cell(sx, sy, CS, s_g.type);
             if(glow) gfx_fill_mode(sx, sy, CS, CS, px_scale(C_WHITE, glow), DM_ADD);
         }
@@ -526,6 +528,7 @@ static void draw_field(bool hide)
             gfx_fill_mode(cell_sx(s_lock_cells[i][0]), cell_sy(y), CS, CS, px_scale(C_WHITE, s_lock_t * 3), DM_ADD);
         }
     }
+    gfx_noclip();
 }
 
 static void box(int x, int y, int w, int h, bool flash)

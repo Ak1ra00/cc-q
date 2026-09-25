@@ -97,7 +97,7 @@ clears it. HOME on the title goes back to the home screen.
 2. **Before you do anything else, put an official Coinkite firmware `.dfu` on a spare microSD card
    and set it aside.** That card is how you get back to a normal Coldcard. Get it from
    [coldcard.com/downloads](https://coldcard.com/downloads).
-3. Put `quasar-1.3.0-q1.dfu` on a microSD card, insert it, and use your Coldcard's own **Advanced →
+3. Put `quasar-1.3.1-q1.dfu` on a microSD card, insert it, and use your Coldcard's own **Advanced →
    Upgrade → From MicroSD** to install it, exactly as you would any firmware update.
 
 **Read [SECURITY.md](SECURITY.md) before you do this.** In short: this firmware is not signed by
