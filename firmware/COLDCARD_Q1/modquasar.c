@@ -1,6 +1,7 @@
 //
 // modquasar.c - QUASAR on the Coldcard Q: keyboard matrix, LCD streaming and
-// the MicroPython bindings for the game and the system screens.
+// the MicroPython bindings for the games (the home screen, QUASAR and TETRIS,
+// all run by arcade.c) and the system screens.
 //
 // The frame buffer layout (ten 32px vertical strips) lets each strip go out as one
 // DMA transfer. Strips are sent in the direction the panel refreshes, starting on
@@ -29,6 +30,7 @@
 #include "rng.h"
 
 #include "game.h"
+#include "arcade.h"
 
 #define PIN_LCD_TEAR        pin_B11
 #define PIN_LCD_CS          pin_A4
@@ -263,13 +265,13 @@ STATIC mp_obj_t q_init(mp_obj_t spi_in)
     lcd_cmd_args(TEON, &zero, 1);
     s_back = 0;
     gfx_set_target(s_fb[s_back]);
-    if(!s_ready) game_init(rng_get() ^ mp_hal_ticks_ms());
+    if(!s_ready) arcade_init(rng_get() ^ mp_hal_ticks_ms());
     s_ready = true;
     return mp_const_none;
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(q_init_obj, q_init);
 
-// run(max_ms): play frames until the game raises an event or time is up
+// run(max_ms): play frames until a game raises an event or time is up
 STATIC mp_obj_t q_run(mp_obj_t ms_in)
 {
     check_ready();
@@ -279,7 +281,7 @@ STATIC mp_obj_t q_run(mp_obj_t ms_in)
     do {
         uint64_t keys = keys_scan();
         gfx_set_target(s_fb[s_back]);
-        ev = game_frame(keys);
+        ev = arcade_frame(keys);
         // With tearing sync a frame (~21ms of SPI) lands on every other 60Hz
         // pulse, which is the game's 30fps. Without it, hold frames to 33ms.
         if(s_vsync == 2) {
@@ -289,7 +291,7 @@ STATIC mp_obj_t q_run(mp_obj_t ms_in)
         s_frame_ms = mp_hal_ticks_ms();
         present_fast(s_fb[s_back]);
         s_back ^= 1;
-        if(game_wants_idle_off()) ev |= 0x100;
+        if(arcade_wants_idle_off()) ev |= 0x100;
     } while(!ev && (mp_hal_ticks_ms() - t0) < budget);
     dma_wait();
     return mp_obj_new_int_from_uint(ev);
@@ -363,6 +365,25 @@ STATIC mp_obj_t q_load_blob(mp_obj_t b_in)
     return mp_obj_new_bool(ok);
 }
 STATIC MP_DEFINE_CONST_FUN_OBJ_1(q_load_blob_obj, q_load_blob);
+
+// the home screen's and TETRIS's own save (arcade.sav), apart from QUASAR's
+STATIC mp_obj_t q_arcade_blob(void)
+{
+    static uint8_t buf[640];
+    int n = arcade_save_pack(buf, sizeof(buf));
+    return mp_obj_new_bytes(buf, n);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_0(q_arcade_blob_obj, q_arcade_blob);
+
+STATIC mp_obj_t q_arcade_load(mp_obj_t b_in)
+{
+    mp_buffer_info_t bi;
+    mp_get_buffer_raise(b_in, &bi, MP_BUFFER_READ);
+    bool ok = arcade_save_unpack(bi.buf, (int)bi.len);
+    if(ok) arcade_loaded();
+    return mp_obj_new_bool(ok);
+}
+STATIC MP_DEFINE_CONST_FUN_OBJ_1(q_arcade_load_obj, q_arcade_load);
 
 STATIC mp_obj_t q_battery(mp_obj_t lv)
 {
@@ -476,6 +497,8 @@ STATIC const mp_rom_map_elem_t quasar_globals_table[] = {
     { MP_ROM_QSTR(MP_QSTR_show),        MP_ROM_PTR(&q_show_obj) },
     { MP_ROM_QSTR(MP_QSTR_save_blob),   MP_ROM_PTR(&q_save_blob_obj) },
     { MP_ROM_QSTR(MP_QSTR_load_blob),   MP_ROM_PTR(&q_load_blob_obj) },
+    { MP_ROM_QSTR(MP_QSTR_arcade_blob), MP_ROM_PTR(&q_arcade_blob_obj) },
+    { MP_ROM_QSTR(MP_QSTR_arcade_load), MP_ROM_PTR(&q_arcade_load_obj) },
     { MP_ROM_QSTR(MP_QSTR_battery),     MP_ROM_PTR(&q_battery_obj) },
     { MP_ROM_QSTR(MP_QSTR_settings),    MP_ROM_PTR(&q_settings_obj) },
     { MP_ROM_QSTR(MP_QSTR_fast),        MP_ROM_PTR(&q_fast_obj) },

@@ -24,7 +24,7 @@ def run():
     # returns 'off' if the user asked to power down, else None
     sel = 0
     while True:
-        sel = ui.menu('SYSTEM', ['INSTALL FIRMWARE', 'DEVICE INFO', 'POWER OFF', 'BACK TO GAME'], sel)
+        sel = ui.menu('SYSTEM', ['INSTALL FIRMWARE', 'DEVICE INFO', 'POWER OFF', 'BACK'], sel)
         if sel == 0:
             install()
         elif sel == 1:

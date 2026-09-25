@@ -7,7 +7,7 @@
 #include "text.h"
 #include "assets_gen.h"
 
-#define QUASAR_VERSION  "1.2.1"
+#define QUASAR_VERSION  "1.3.0"
 #define FPS             30
 
 // ---------------------------------------------------------------- keys
@@ -55,6 +55,7 @@ enum {
     EV_POWEROFF = 0x04,     // user asked to power down
     EV_BRIGHT   = 0x08,     // brightness setting changed
     EV_VSYNC    = 0x10,     // display sync setting changed
+    EV_HOME     = 0x40,     // user picked HOME: arcade.c takes it, the host never sees it
 };
 extern uint32_t g_events;
 

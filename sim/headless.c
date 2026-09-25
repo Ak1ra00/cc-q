@@ -1,14 +1,20 @@
-// QUASAR - headless runner: plays the game with an autopilot or a key script
-// and writes frames to disk. Used for tests and for the README screenshots.
+// QUASAR - headless runner: boots the firmware's home screen (or goes straight
+// into a game), plays with an autopilot or a key script, and writes frames to
+// disk. Used for tests and for the README screenshots.
 //
 //   quasar_headless [--frames N] [--shot F[,F...]] [--out DIR] [--bot]
 //                   [--stage S] [--diff D] [--seed X] [--keys "F:KEY,..."]
+//                   [--quasar] [--tetris MODE]
+//
+//   --stage S     QUASAR on its own, as before the home screen, from stage S
+//   --quasar      QUASAR on its own, from its title
+//   --tetris M    TETRIS, a game of mode M (0 marathon, 1 sprint, 2 ultra; -1 its menu)
 //
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include "../game/game.h"
+#include "../game/arcade.h"
 
 static px_t fb[FB_PIX];
 static uint32_t s_ms;
@@ -40,6 +46,7 @@ static const struct { const char *name; int key; } KEYNAMES[] = {
     { "DEL", K_DEL }, { "POWER", K_POWER }, { "P", K_P }, { "A", K_A }, { "Q", K_Q },
     { "S", K_S }, { "R", K_R }, { "K", K_K }, { "I", K_I }, { "E", K_E }, { "Y", K_Y }, { "N", K_N },
     { "O", K_O }, { "V", K_V }, { "B", K_B }, { "T", K_T }, { "1", K_1 }, { "2", K_2 },
+    { "X", K_X }, { "Z", K_Z }, { "C", K_C }, { "SHIFT", K_SHIFT }, { "D", K_D }, { "M", K_M },
 };
 
 typedef struct { int frame, len; uint64_t keys; } press_t;
@@ -155,9 +162,9 @@ static uint64_t bot_keys(int frame)
 
 int main(int argc, char **argv)
 {
-    int frames = 300, stage = 0, diff = 1;
+    int frames = 300, stage = 0, diff = 1, tetris = -2;
     uint32_t seed = 12345;
-    bool bot = false;
+    bool bot = false, quasar_only = false;
     const char *out = ".";
     char shots[4096] = "";
 
@@ -170,11 +177,20 @@ int main(int argc, char **argv)
         else if(!strcmp(argv[i], "--diff") && i + 1 < argc) diff = atoi(argv[++i]);
         else if(!strcmp(argv[i], "--seed") && i + 1 < argc) seed = (uint32_t)strtoul(argv[++i], NULL, 0);
         else if(!strcmp(argv[i], "--keys") && i + 1 < argc) parse_script(argv[++i]);
+        else if(!strcmp(argv[i], "--quasar")) quasar_only = true;
+        else if(!strcmp(argv[i], "--tetris") && i + 1 < argc) tetris = atoi(argv[++i]);
     }
+    // QUASAR's own frame loop, exactly as it ran before the home screen existed
+    bool direct = quasar_only || stage > 0;
 
     gfx_set_target(fb);
-    game_init(seed);
-    if(stage > 0) game_debug_start(stage, diff);
+    if(direct) {
+        game_init(seed);
+        if(stage > 0) game_debug_start(stage, diff);
+    } else {
+        arcade_init(seed);
+        if(tetris >= -1) arcade_debug_start(GAME_TETRIS, tetris);
+    }
 
     int shot_list[512], nshots = 0;
     for(char *t = strtok(shots, ","); t && nshots < 512; t = strtok(NULL, ",")) shot_list[nshots++] = atoi(t);
@@ -188,8 +204,8 @@ int main(int argc, char **argv)
         for(int i = 0; i < s_nscript; i++) {
             if(f >= s_script[i].frame && f < s_script[i].frame + s_script[i].len) keys |= s_script[i].keys;
         }
-        if(bot) keys |= bot_keys(f);
-        uint32_t ev = game_frame(keys);
+        if(bot) keys |= arcade_app() == APP_TETRIS && !direct ? tetris_bot_keys(1) : bot_keys(f);
+        uint32_t ev = direct ? game_frame(keys) : arcade_frame(keys);
         ev_all |= ev;
         int ne = eshots_count();
         if(ne > max_eshots) max_eshots = ne;
@@ -204,6 +220,16 @@ int main(int argc, char **argv)
         }
     }
     double secs = (double)(clock() - t0) / CLOCKS_PER_SEC;
+    if(!direct && arcade_app() != APP_QUASAR) {
+        uint32_t score;
+        int lines, level;
+        bool over;
+        int st = arcade_app() == APP_TETRIS ? tetris_debug(&score, &lines, &level, &over) : -1;
+        printf("frames=%d app=%d screen=%d score=%u lines=%d level=%d over=%d events=0x%llx host_ms_per_frame=%.3f\n",
+               frames, arcade_app(), st, st >= 0 ? score : 0, st >= 0 ? lines : 0, st >= 0 ? level : 0,
+               st >= 0 ? over : 0, ev_all, secs * (double)1000 / (double)frames);
+        return 0;
+    }
     printf("frames=%d state=%d stage=%d score=%u lives=%d hp=%d deaths=%d max_bullets=%d events=0x%llx host_ms_per_frame=%.3f\n",
            frames, g_game.state, g_stage.num, g_run.score, g_pl.lives, g_pl.hp, deaths, max_eshots, ev_all,
            secs * (double)1000 / (double)frames);

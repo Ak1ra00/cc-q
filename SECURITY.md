@@ -3,10 +3,10 @@
 ## What this firmware can and can't touch
 
 QUASAR has no Bitcoin code in it anywhere — no wallet, no seed words, no BIP-32/39, no PSBT, no
-signing. None of that code was stripped out at the last minute; it was never built in. The game
-(`game/`) is self-contained C with no knowledge of the secure elements at all, and the Python around
-it (`firmware/python/`) only does three things: start the game, save its high-score file to
-`/flash`, and run the SYSTEM menu. Even a full compromise of this firmware's own code cannot expose
+signing. None of that code was stripped out at the last minute; it was never built in. The games
+(`game/`) are self-contained C with no knowledge of the secure elements at all, and the Python around
+them (`firmware/python/`) only does three things: start the games, save their settings, scores and
+saved games to `/flash`, and run the SYSTEM menu. Even a full compromise of this firmware's own code cannot expose
 a seed phrase, because no seed phrase is ever loaded, held, or reachable from any of it.
 
 There is exactly one place this firmware talks to the secure elements: **installing other

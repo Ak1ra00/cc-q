@@ -54,6 +54,15 @@ def load_blob(b):
     return True
 
 
+def arcade_blob():
+    return b'ARCADE-BLOB'
+
+
+def arcade_load(b):
+    calls.append(('arcade_load', bytes(b)))
+    return True
+
+
 def battery(level):
     calls.append(('battery', level))
 

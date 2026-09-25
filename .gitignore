@@ -6,6 +6,8 @@ external/micropython/mpy-cross/build/
 external/micropython/mpy-cross/mpy-cross
 external/micropython/ports/stm32/boards/COLDCARD_Q1
 sim/quasar_headless
+sim/tetris_test
+sim/arcade_test
 sim/quasar_sdl
 sim/*.ppm
 sim/*.png

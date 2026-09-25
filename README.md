@@ -1,10 +1,12 @@
 # QUASAR
 
 A full custom firmware for the [Coldcard Q](https://coldcard.com/) that turns it into a dedicated
-handheld for **QUASAR**, a side-scrolling shoot-'em-up built to use every pixel of its 320×240
-color LCD and every key on its keyboard. There is no Bitcoin code in this firmware at all — no
-wallet, no seed words, no secure element access beyond what the bootloader itself requires to
-install firmware. It is a game console that happens to be shaped like a hardware wallet.
+handheld game console. It boots into **Q ARCADE**, a home screen that shows each game as a live
+card, and comes with two games built to use every pixel of its 320×240 color LCD and every key on
+its keyboard: **QUASAR**, a side-scrolling shoot-'em-up, and **TETRIS**. There is no Bitcoin code in
+this firmware at all — no wallet, no seed words, no secure element access beyond what the
+bootloader itself requires to install firmware. It is a game console that happens to be shaped like
+a hardware wallet.
 
 <p align="center">
   <img src="docs/showcase/stage1-frostbelt.gif" width="270" alt="Stage 1, Frost Belt: the Glacier Maw boss fight on a Coldcard Q">
@@ -21,7 +23,53 @@ from the game's simulator, pixel for pixel, at the game's own 30 frames a second
 | ![Title screen](docs/screenshots/title.png) | ![Stage 1: Frost Belt, the Glacier Maw boss](docs/screenshots/stage1-frostbelt.png) | ![Stage 2: Crimson Nebula, the Hydra boss](docs/screenshots/stage2-crimsonnebula.png) |
 | ![Stage 3: Dyson Array, the Warden boss](docs/screenshots/stage3-dysonarray.png) | ![Stage 4: Solar Corona, the Helios boss](docs/screenshots/stage4-solarcorona.png) | ![Stage 5: The Quasar, the Singularity boss](docs/screenshots/stage5-thequasar.png) |
 
-## The game
+## The home screen
+
+<p align="center">
+  <img src="docs/showcase/home-to-tetris.gif" alt="The home screen: sliding from QUASAR to TETRIS, launching it, and a game of Marathon">
+</p>
+<p align="center"><sub>From the simulator, pixel for pixel, at the firmware's own 30 frames a second.</sub></p>
+
+Switch on and the games wait side by side on a neon horizon, each on a card that plays itself: a
+QUASAR ship fighting its way through drones, and a TETRIS game stacking its own blocks. **LEFT** and
+**RIGHT** slide between them — the whole screen's colors follow the card you're on — and **ENTER**
+zooms the card up to fill the screen and opens the game behind a wave of blocks. Each card shows
+your best score, and a badge when there's a saved game waiting. **DOWN** reaches **SETTINGS**
+(brightness, screen sync, auto off, screen shake — shared by every game) and **SYSTEM**. From a
+game, HOME on its menu (or CANCEL there) brings you back. The home screen opens on the last game
+you played.
+
+| | |
+|---|---|
+| ![The home screen, on QUASAR](docs/screenshots/home-quasar.png) | ![The home screen, on TETRIS](docs/screenshots/home-tetris.png) |
+
+## TETRIS
+
+Modern guideline Tetris: SRS rotation with wall kicks, the 7-piece bag, hold, a five-piece
+preview, ghost piece, lock delay, T-spins (and minis), back-to-back bonuses, combos and perfect
+clears, scored the guideline way. Three modes: **MARATHON** (endless, pick a start level from 1 to
+15; the speed climbs every 10 lines up to 20G), **SPRINT** (40 lines against the clock) and
+**ULTRA** (as many points as you can in two minutes), each with its own record table.
+
+Every level has its own colors, fading from one to the next as you climb. Line clears flash and
+burst into sparks, a Tetris shakes the screen, hard drops leave light trails, the piece glows
+brighter as its lock delay runs out, and the field's frame flashes red when the stack gets close
+to the top.
+
+**Controls:** LEFT / RIGHT to move, DOWN to soft drop, ENTER or SPACE to hard drop, UP or X to turn
+clockwise, Z to turn the other way, C or SHIFT to hold; CANCEL, TAB or P to pause; hold POWER to
+save the game and switch off. OPTIONS has the ghost piece, the grid, key repeat speed (up to
+instant), and whether UP turns or hard-drops.
+
+**Saved games:** pause and pick SAVE AND QUIT, or just hold POWER in the middle of a game, and
+CONTINUE on the TETRIS menu picks it up exactly where you left it — same board, same queue, same
+score.
+
+| | |
+|---|---|
+| ![TETRIS: Marathon at level 5](docs/screenshots/tetris-marathon.png) | ![TETRIS: its menu](docs/screenshots/tetris-menu.png) |
+
+## QUASAR
 
 Fly through five stages — **Frost Belt**, **Crimson Nebula**, **Dyson Array**, **Solar Corona**,
 and **The Quasar** itself — each ending in a boss fight against a screen-filling enemy with its own
@@ -41,7 +89,7 @@ and an options screen (difficulty, screen shake, brightness, sync mode, auto off
 **Saved runs:** from stage 2 on, your run is saved as each stage starts. Switch off (or pick SAVE
 AND QUIT on the pause screen), and CONTINUE on the title picks it up at the start of that stage with
 the score, lives, weapons and difficulty you had there. Game over, quitting, or finishing the game
-clears it.
+clears it. HOME on the title goes back to the home screen.
 
 ## Installing it
 
@@ -49,15 +97,19 @@ clears it.
 2. **Before you do anything else, put an official Coinkite firmware `.dfu` on a spare microSD card
    and set it aside.** That card is how you get back to a normal Coldcard. Get it from
    [coldcard.com/downloads](https://coldcard.com/downloads).
-3. Put `quasar-1.2.1-q1.dfu` on a microSD card, insert it, and use your Coldcard's own **Advanced →
+3. Put `quasar-1.3.0-q1.dfu` on a microSD card, insert it, and use your Coldcard's own **Advanced →
    Upgrade → From MicroSD** to install it, exactly as you would any firmware update.
 
 **Read [SECURITY.md](SECURITY.md) before you do this.** In short: this firmware is not signed by
 Coinkite (nobody outside Coinkite can sign firmware with their key), so on every boot the
 bootloader shows its unsigned-firmware warning for about 25 seconds before QUASAR starts. That is
-the bootloader working correctly, not a bug in this project. The way back is QUASAR's own
-**SYSTEM → INSTALL FIRMWARE** with the card from step 2 (hold **S** while switching on to go
+the bootloader working correctly, not a bug in this project. The way back is **SYSTEM → INSTALL
+FIRMWARE** on the home screen with the card from step 2 (hold **S** while switching on to go
 straight there), which is why that card matters.
+
+Updating from an earlier QUASAR keeps your QUASAR scores, saved run and settings: they stay in
+`/flash/quasar.sav` as before, and the home screen and TETRIS keep theirs in a file of their own,
+`/flash/arcade.sav`.
 
 ## Building it from source
 
@@ -73,16 +125,18 @@ pip install -r firmware/requirements.txt        # ecdsa, click — for signing
 The release was built with exactly that toolchain version; another version still builds, but won't
 reproduce the published bytes (see [SECURITY.md](SECURITY.md) for how to compare).
 
-This builds MicroPython's `stm32` port with the QUASAR game compiled in as a user C module, signs
+This builds MicroPython's `stm32` port with the games compiled in as a user C module, signs
 the result with the public developer key (`firmware/keys/00.pem` — the same key anyone building
 their own Coldcard firmware signs with; its private half is checked into this repo on purpose, same
 as upstream), and writes `release/quasar-<version>-q1.dfu`.
 
-The game's own logic (`game/`) is portable C with no hardware dependencies, and builds separately
-into a desktop simulator (`sim/`) used for testing and for the screenshots above:
+The games (`game/`) are portable C with no hardware dependencies, and build separately into a
+desktop simulator (`sim/`) used for testing and for the screenshots above:
 
 ```
-cd sim && make && ./quasar_headless --bot --stage 1   # plays stage 1 with an autopilot
+cd sim && make && ./quasar_headless --bot --stage 1   # plays QUASAR's stage 1 with an autopilot
+./quasar_headless --bot --tetris 0                    # plays TETRIS marathon with its demo player
+make test                                             # TETRIS rules and home screen tests (SAN=1 for sanitizers)
 ```
 
 The Python side that talks to the bootloader (`firmware/python/system.py`, for installing other
@@ -91,12 +145,14 @@ the hardware: `./firmware/tests/run.sh`.
 
 ## What's in here
 
-- `game/` — the game itself: portable C, no MicroPython or hardware dependencies.
-- `sim/` — a headless desktop build of the game, for tests and screenshots.
+- `game/` — the games: portable C, no MicroPython or hardware dependencies. `arcade.c` runs the
+  frame loop over the home screen (`home.c`) and the games; QUASAR is everything else there
+  (`game.c` and friends); TETRIS is `tetris.c` (the rules) and `tetris_ui.c` (its screens).
+- `sim/` — a headless desktop build of the games, for tests and screenshots.
 - `tools/` — the offline pipeline that generates `game/assets_gen.c` (sprites, backgrounds) and
   `game/font_gen.c` (the bitmap font) from source art, so nothing is drawn by hand at build time.
 - `firmware/COLDCARD_Q1/` — the board port: `modquasar.c` drives the LCD and keyboard and exposes
-  the game to Python; everything else here is Coinkite's original Coldcard Q board support with the
+  the games to Python; everything else here is Coinkite's original Coldcard Q board support with the
   Bitcoin-specific pieces removed.
 - `firmware/python/` — the frozen Python: boot (`main.py`), the system menus (`ui.py`,
   `system.py`), and the small, unmodified slice of Coinkite's own firmware needed to read the PIN
@@ -111,7 +167,10 @@ Built on [Coinkite](https://coinkite.com/)'s open-source
 [Coldcard firmware](https://github.com/Coldcard/firmware) and their fork of
 [MicroPython](https://github.com/Coldcard/micropython) — the board bring-up, bootloader protocol,
 and firmware-signing tools here are theirs; see [COPYING-CC](COPYING-CC) and the notice at
-the top of each file that keeps their copyright. QUASAR the game, and everything under `game/`,
-`sim/`, and `tools/`, is new for this project. See [LICENSE](LICENSE) for the terms.
+the top of each file that keeps their copyright. QUASAR the game, the home screen, this TETRIS, and
+everything under `game/`, `sim/`, and `tools/`, is new for this project. See [LICENSE](LICENSE)
+for the terms.
 
-This is a hobby project, independent of and not endorsed by Coinkite.
+This is a hobby project, independent of and not endorsed by Coinkite. Tetris is a trademark of The
+Tetris Company; the TETRIS here is an independent fan-made implementation, not affiliated with or
+endorsed by them.

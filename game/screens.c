@@ -6,8 +6,8 @@ static const char *const DIFF_NAMES[3] = { "EASY", "NORMAL", "HARD" };
 static const px_t DIFF_COLS[3] = { COL(120, 255, 160), COL(120, 220, 255), COL(255, 100, 100) };
 
 // menu model for the title screen
-enum { M_CONTINUE, M_START, M_PRACTICE, M_SCORES, M_OPTIONS, M_HOWTO, M_SYSTEM, M_COUNT };
-static const char *const TITLE_ITEMS[M_COUNT] = { "CONTINUE", "START GAME", "PRACTICE", "HIGH SCORES", "OPTIONS", "HOW TO PLAY", "SYSTEM" };
+enum { M_CONTINUE, M_START, M_PRACTICE, M_SCORES, M_OPTIONS, M_HOWTO, M_HOME, M_COUNT };
+static const char *const TITLE_ITEMS[M_COUNT] = { "CONTINUE", "START GAME", "PRACTICE", "HIGH SCORES", "OPTIONS", "HOW TO PLAY", "HOME" };
 
 static int s_clear_step;
 static uint32_t s_clear_bonus[4];
@@ -174,11 +174,13 @@ static void title_update(void)
             case M_HOWTO:
                 game_set_state(ST_HOWTO);
                 break;
-            case M_SYSTEM:
-                g_events |= EV_SYSTEM;
+            case M_HOME:
+                g_events |= EV_HOME;
                 break;
         }
     }
+    // back to the game selector (SYSTEM lives there now)
+    if(g_in.pressed & B_B) g_events |= EV_HOME;
     // attract: cycle to the score table when idle
     if(s_idle > 30 * 25) {
         s_idle = 0;
