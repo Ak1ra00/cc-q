@@ -102,7 +102,7 @@ section { position: relative; padding: clamp(72px, 10vw, 128px) 0; }
   filter: drop-shadow(0 26px 40px rgba(0,0,0,.65)) drop-shadow(0 0 30px var(--glow, rgba(255,106,19,.35))); }
 .device .play:focus-visible { outline: 2px solid var(--orange); outline-offset: 4px; border-radius: 22px; }
 .device .play:focus:not(:focus-visible) { outline: none; }
-.device video { width: 100%; height: auto; aspect-ratio: 560 / 886; background: transparent;
+.device video, .device img.gif { width: 100%; height: auto; aspect-ratio: 560 / 886; background: transparent;
   /* just the Coldcard Q, cut out of the clip's backdrop */
   clip-path: inset(3.6% 6.8% 6.5% 6.8% round 5.4% / 3.4%); margin-bottom: -6.5%; }
 .device figcaption { font: 9px/1.4 var(--pixel); color: var(--muted); letter-spacing: .06em; text-align: center; }
@@ -111,7 +111,8 @@ section { position: relative; padding: clamp(72px, 10vw, 128px) 0; }
 
 /* ---------------------------------------------------------------- ticker */
 .ticker { border-block: 1px solid var(--line); background: var(--bg2); overflow: hidden; white-space: nowrap; }
-.ticker div { display: inline-block; padding: 16px 0; font: 11px/1 var(--pixel); color: var(--yellow); animation: tick 38s linear infinite; }
+.ticker .run { display: inline-block; padding: 16px 0; font: 11px/1 var(--pixel); color: var(--yellow); animation: tick 38s linear infinite; }
+.ticker .set { display: inline; }
 .ticker span { margin: 0 22px; }
 .ticker i { color: var(--orange); font-style: normal; }
 @keyframes tick { to { transform: translateX(-50%); } }
@@ -250,7 +251,7 @@ footer p { max-width: 900px; }
 /* ---------------------------------------------------------------- lightbox, easter egg */
 dialog { border: 0; padding: 0; background: transparent; max-width: 92vw; }
 dialog::backdrop { background: rgba(3,3,8,.86); backdrop-filter: blur(6px); }
-dialog video { height: min(88vh, 900px); width: auto; aspect-ratio: 560 / 886; clip-path: inset(3.6% 6.8% 6.5% 6.8% round 5.4% / 3.4%); }
+dialog video, dialog img.gif { height: min(88vh, 900px); width: auto; aspect-ratio: 560 / 886; clip-path: inset(3.6% 6.8% 6.5% 6.8% round 5.4% / 3.4%); }
 dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel); color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 12px 14px; cursor: pointer; }
 .toast { position: fixed; left: 50%; bottom: 30px; transform: translate(-50%, 160%); opacity: 0; visibility: hidden; transition: transform .35s, opacity .35s, visibility .35s; z-index: 80; font: 12px/1.6 var(--pixel);
   background: #120600; color: var(--yellow); border: 2px solid var(--orange); padding: 14px 18px; border-radius: 8px; box-shadow: 0 0 30px rgba(255,106,19,.5); }
@@ -261,6 +262,17 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   html { scroll-behavior: auto; }
+  /* the ticker can't scroll, so it wraps instead of running off the edge */
+  .ticker { white-space: normal; }
+  .ticker .run { display: block; padding: 14px 12px; line-height: 1.5; }
+  .ticker .set { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 22px; }
+  .ticker .again, .ticker i { display: none; }
+  .ticker span { margin: 0; }
+  @media (max-width: 600px) { .ticker .run { font-size: 9px; } .ticker .set { gap: 10px 16px; } }
+  /* PAC-MAN stops a third of the way along, mouth open, the dots behind him gone */
+  .chomp .eaten { width: 34%; }
+  .chomp .pac { left: 34%; clip-path: polygon(50% 50%, 100% 22%, 100% 0, 0 0, 0 100%, 100% 100%, 100% 78%); }
+  .chomp .ghost { left: 34%; }
 }
 </style>
 </head>
@@ -300,11 +312,11 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
         <span class="badge">PAC-MAN</span><span class="badge">TETRIS</span><span class="badge">SHOOT-'EM-UP</span><span class="badge">30 FPS</span><span class="badge">0 WALLET CODE</span>
       </div>
     </div>
-    <figure class="device big" style="--glow:rgba(255,150,40,.35)"><button class="play" aria-label="Play Q ARCADE"><video muted loop playsinline preload="none" poster="media/home-screen.jpg"><source src="media/home-screen.webm" type="video/webm"><source src="media/home-screen.mp4" type="video/mp4"></video></button><figcaption>Q ARCADE</figcaption></figure>
+    <figure class="device big" style="--glow:rgba(255,150,40,.35)"><button class="play" aria-label="Play Q ARCADE" data-gif="showcase/home-screen.gif"><video muted loop playsinline preload="none" poster="media/home-screen.jpg"><source src="media/home-screen.webm" type="video/webm"><source src="media/home-screen.mp4" type="video/mp4"></video></button><figcaption>Q ARCADE</figcaption></figure>
   </div>
 </section>
 
-<div class="ticker" aria-hidden="true"><div><span>PAC-MAN IN NEON</span><i>&#9733;</i><span>TETRIS</span><i>&#9733;</i><span>FIVE BOSSES</span><i>&#9733;</i><span>30 FPS</span><i>&#9733;</i><span>320&times;240</span><i>&#9733;</i><span>HOLD POWER TO SAVE</span><i>&#9733;</i><span>NO WALLET CODE</span><i>&#9733;</i><span>FREE &amp; OPEN SOURCE</span><i>&#9733;</i><span>INSERT COIN</span><i>&#9733;</i><span>PAC-MAN IN NEON</span><i>&#9733;</i><span>TETRIS</span><i>&#9733;</i><span>FIVE BOSSES</span><i>&#9733;</i><span>30 FPS</span><i>&#9733;</i><span>320&times;240</span><i>&#9733;</i><span>HOLD POWER TO SAVE</span><i>&#9733;</i><span>NO WALLET CODE</span><i>&#9733;</i><span>FREE &amp; OPEN SOURCE</span><i>&#9733;</i><span>INSERT COIN</span><i>&#9733;</i></div></div>
+<div class="ticker" aria-hidden="true"><div class="run"><div class="set"><span>PAC-MAN IN NEON</span><i>&#9733;</i><span>TETRIS</span><i>&#9733;</i><span>FIVE BOSSES</span><i>&#9733;</i><span>30 FPS</span><i>&#9733;</i><span>320&times;240</span><i>&#9733;</i><span>HOLD POWER TO SAVE</span><i>&#9733;</i><span>NO WALLET CODE</span><i>&#9733;</i><span>FREE &amp; OPEN SOURCE</span><i>&#9733;</i><span>INSERT COIN</span><i>&#9733;</i></div><div class="set again"><span>PAC-MAN IN NEON</span><i>&#9733;</i><span>TETRIS</span><i>&#9733;</i><span>FIVE BOSSES</span><i>&#9733;</i><span>30 FPS</span><i>&#9733;</i><span>320&times;240</span><i>&#9733;</i><span>HOLD POWER TO SAVE</span><i>&#9733;</i><span>NO WALLET CODE</span><i>&#9733;</i><span>FREE &amp; OPEN SOURCE</span><i>&#9733;</i><span>INSERT COIN</span><i>&#9733;</i></div></div></div>
 
 <section class="eli5" id="what">
   <div class="wrap">
@@ -345,7 +357,7 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
     </div>
 
     <div class="game">
-      <div class="main"><figure class="device big" style="--glow:rgba(80,160,255,.35)"><button class="play" aria-label="Play NEON"><video muted loop playsinline preload="none" poster="media/pacman-neon.jpg"><source src="media/pacman-neon.webm" type="video/webm"><source src="media/pacman-neon.mp4" type="video/mp4"></video></button><figcaption>NEON</figcaption></figure></div>
+      <div class="main"><figure class="device big" style="--glow:rgba(80,160,255,.35)"><button class="play" aria-label="Play NEON" data-gif="showcase/pacman-neon.gif"><video muted loop playsinline preload="none" poster="media/pacman-neon.jpg"><source src="media/pacman-neon.webm" type="video/webm"><source src="media/pacman-neon.mp4" type="video/mp4"></video></button><figcaption>NEON</figcaption></figure></div>
       <div>
         <span class="tag new">NEW IN 1.4.0</span>
         <h3>PAC-MAN, rebuilt in light.</h3>
@@ -356,12 +368,12 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
           <li><b>NEON</b> adds a dash that goes <i>through</i> ghosts, a MAGNET that pulls in dots, and a FREEZE that turns ghosts to ice you can shatter.</li>
           <li><b>Three mazes</b>, with a new colour every few levels.</li>
         </ul>
-        <div class="clips"><figure class="device" style="--glow:rgba(60,120,255,.3)"><button class="play" aria-label="Play CLASSIC"><video muted loop playsinline preload="none" poster="media/pacman-classic.jpg"><source src="media/pacman-classic.webm" type="video/webm"><source src="media/pacman-classic.mp4" type="video/mp4"></video></button><figcaption>CLASSIC</figcaption></figure><figure class="device" style="--glow:rgba(255,80,220,.3)"><button class="play" aria-label="Play A NEW MAZE"><video muted loop playsinline preload="none" poster="media/pacman-mazes.jpg"><source src="media/pacman-mazes.webm" type="video/webm"><source src="media/pacman-mazes.mp4" type="video/mp4"></video></button><figcaption>A NEW MAZE</figcaption></figure><figure class="device" style="--glow:rgba(255,170,40,.3)"><button class="play" aria-label="Play HOME"><video muted loop playsinline preload="none" poster="media/home-screen.jpg"><source src="media/home-screen.webm" type="video/webm"><source src="media/home-screen.mp4" type="video/mp4"></video></button><figcaption>HOME</figcaption></figure></div>
+        <div class="clips"><figure class="device" style="--glow:rgba(60,120,255,.3)"><button class="play" aria-label="Play CLASSIC" data-gif="showcase/pacman-classic.gif"><video muted loop playsinline preload="none" poster="media/pacman-classic.jpg"><source src="media/pacman-classic.webm" type="video/webm"><source src="media/pacman-classic.mp4" type="video/mp4"></video></button><figcaption>CLASSIC</figcaption></figure><figure class="device" style="--glow:rgba(255,80,220,.3)"><button class="play" aria-label="Play A NEW MAZE" data-gif="showcase/pacman-mazes.gif"><video muted loop playsinline preload="none" poster="media/pacman-mazes.jpg"><source src="media/pacman-mazes.webm" type="video/webm"><source src="media/pacman-mazes.mp4" type="video/mp4"></video></button><figcaption>A NEW MAZE</figcaption></figure><figure class="device" style="--glow:rgba(255,170,40,.3)"><button class="play" aria-label="Play HOME" data-gif="showcase/home-screen.gif"><video muted loop playsinline preload="none" poster="media/home-screen.jpg"><source src="media/home-screen.webm" type="video/webm"><source src="media/home-screen.mp4" type="video/mp4"></video></button><figcaption>HOME</figcaption></figure></div>
       </div>
     </div>
 
     <div class="game flip">
-      <div class="main"><figure class="device big" style="--glow:rgba(60,200,255,.35)"><button class="play" aria-label="Play MARATHON"><video muted loop playsinline preload="none" poster="media/tetris-marathon.jpg"><source src="media/tetris-marathon.webm" type="video/webm"><source src="media/tetris-marathon.mp4" type="video/mp4"></video></button><figcaption>MARATHON</figcaption></figure></div>
+      <div class="main"><figure class="device big" style="--glow:rgba(60,200,255,.35)"><button class="play" aria-label="Play MARATHON" data-gif="showcase/tetris-marathon.gif"><video muted loop playsinline preload="none" poster="media/tetris-marathon.jpg"><source src="media/tetris-marathon.webm" type="video/webm"><source src="media/tetris-marathon.mp4" type="video/mp4"></video></button><figcaption>MARATHON</figcaption></figure></div>
       <div>
         <span class="tag cls">MODERN RULES</span>
         <h3>TETRIS, done properly.</h3>
@@ -372,12 +384,12 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
           <li><b>ULTRA:</b> score as much as you can in two minutes.</li>
           <li>T-spins, combos and back-to-back bonuses. Every level has its own colours.</li>
         </ul>
-        <div class="clips"><figure class="device" style="--glow:rgba(60,200,255,.3)"><button class="play" aria-label="Play SPRINT"><video muted loop playsinline preload="none" poster="media/tetris-sprint.jpg"><source src="media/tetris-sprint.webm" type="video/webm"><source src="media/tetris-sprint.mp4" type="video/mp4"></video></button><figcaption>SPRINT</figcaption></figure><figure class="device" style="--glow:rgba(255,90,160,.3)"><button class="play" aria-label="Play ULTRA"><video muted loop playsinline preload="none" poster="media/tetris-ultra.jpg"><source src="media/tetris-ultra.webm" type="video/webm"><source src="media/tetris-ultra.mp4" type="video/mp4"></video></button><figcaption>ULTRA</figcaption></figure><figure class="device" style="--glow:rgba(80,220,140,.3)"><button class="play" aria-label="Play MARATHON"><video muted loop playsinline preload="none" poster="media/tetris-marathon.jpg"><source src="media/tetris-marathon.webm" type="video/webm"><source src="media/tetris-marathon.mp4" type="video/mp4"></video></button><figcaption>MARATHON</figcaption></figure></div>
+        <div class="clips"><figure class="device" style="--glow:rgba(60,200,255,.3)"><button class="play" aria-label="Play SPRINT" data-gif="showcase/tetris-sprint.gif"><video muted loop playsinline preload="none" poster="media/tetris-sprint.jpg"><source src="media/tetris-sprint.webm" type="video/webm"><source src="media/tetris-sprint.mp4" type="video/mp4"></video></button><figcaption>SPRINT</figcaption></figure><figure class="device" style="--glow:rgba(255,90,160,.3)"><button class="play" aria-label="Play ULTRA" data-gif="showcase/tetris-ultra.gif"><video muted loop playsinline preload="none" poster="media/tetris-ultra.jpg"><source src="media/tetris-ultra.webm" type="video/webm"><source src="media/tetris-ultra.mp4" type="video/mp4"></video></button><figcaption>ULTRA</figcaption></figure><figure class="device" style="--glow:rgba(80,220,140,.3)"><button class="play" aria-label="Play MARATHON" data-gif="showcase/tetris-marathon.gif"><video muted loop playsinline preload="none" poster="media/tetris-marathon.jpg"><source src="media/tetris-marathon.webm" type="video/webm"><source src="media/tetris-marathon.mp4" type="video/mp4"></video></button><figcaption>MARATHON</figcaption></figure></div>
       </div>
     </div>
 
     <div class="game">
-      <div class="main"><figure class="device big" style="--glow:rgba(170,90,255,.4)"><button class="play" aria-label="Play THE QUASAR"><video muted loop playsinline preload="none" poster="media/stage5-thequasar.jpg"><source src="media/stage5-thequasar.webm" type="video/webm"><source src="media/stage5-thequasar.mp4" type="video/mp4"></video></button><figcaption>THE QUASAR</figcaption></figure></div>
+      <div class="main"><figure class="device big" style="--glow:rgba(170,90,255,.4)"><button class="play" aria-label="Play THE QUASAR" data-gif="showcase/stage5-thequasar.gif"><video muted loop playsinline preload="none" poster="media/stage5-thequasar.jpg"><source src="media/stage5-thequasar.webm" type="video/webm"><source src="media/stage5-thequasar.mp4" type="video/mp4"></video></button><figcaption>THE QUASAR</figcaption></figure></div>
       <div>
         <span class="tag org">THE ORIGINAL</span>
         <h3>QUASAR, a shoot-'em-up.</h3>
@@ -389,7 +401,7 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
         </ul>
       </div>
     </div>
-    <div class="clips five"><figure class="device" style="--glow:rgba(90,200,255,.3)"><button class="play" aria-label="Play FROST BELT"><video muted loop playsinline preload="none" poster="media/stage1-frostbelt.jpg"><source src="media/stage1-frostbelt.webm" type="video/webm"><source src="media/stage1-frostbelt.mp4" type="video/mp4"></video></button><figcaption>FROST BELT</figcaption></figure><figure class="device" style="--glow:rgba(255,60,90,.3)"><button class="play" aria-label="Play CRIMSON NEBULA"><video muted loop playsinline preload="none" poster="media/stage2-crimsonnebula.jpg"><source src="media/stage2-crimsonnebula.webm" type="video/webm"><source src="media/stage2-crimsonnebula.mp4" type="video/mp4"></video></button><figcaption>CRIMSON NEBULA</figcaption></figure><figure class="device" style="--glow:rgba(255,190,60,.3)"><button class="play" aria-label="Play DYSON ARRAY"><video muted loop playsinline preload="none" poster="media/stage3-dysonarray.jpg"><source src="media/stage3-dysonarray.webm" type="video/webm"><source src="media/stage3-dysonarray.mp4" type="video/mp4"></video></button><figcaption>DYSON ARRAY</figcaption></figure><figure class="device" style="--glow:rgba(255,120,40,.3)"><button class="play" aria-label="Play SOLAR CORONA"><video muted loop playsinline preload="none" poster="media/stage4-solarcorona.jpg"><source src="media/stage4-solarcorona.webm" type="video/webm"><source src="media/stage4-solarcorona.mp4" type="video/mp4"></video></button><figcaption>SOLAR CORONA</figcaption></figure><figure class="device" style="--glow:rgba(170,90,255,.3)"><button class="play" aria-label="Play THE QUASAR"><video muted loop playsinline preload="none" poster="media/stage5-thequasar.jpg"><source src="media/stage5-thequasar.webm" type="video/webm"><source src="media/stage5-thequasar.mp4" type="video/mp4"></video></button><figcaption>THE QUASAR</figcaption></figure></div>
+    <div class="clips five"><figure class="device" style="--glow:rgba(90,200,255,.3)"><button class="play" aria-label="Play FROST BELT" data-gif="showcase/stage1-frostbelt.gif"><video muted loop playsinline preload="none" poster="media/stage1-frostbelt.jpg"><source src="media/stage1-frostbelt.webm" type="video/webm"><source src="media/stage1-frostbelt.mp4" type="video/mp4"></video></button><figcaption>FROST BELT</figcaption></figure><figure class="device" style="--glow:rgba(255,60,90,.3)"><button class="play" aria-label="Play CRIMSON NEBULA" data-gif="showcase/stage2-crimsonnebula.gif"><video muted loop playsinline preload="none" poster="media/stage2-crimsonnebula.jpg"><source src="media/stage2-crimsonnebula.webm" type="video/webm"><source src="media/stage2-crimsonnebula.mp4" type="video/mp4"></video></button><figcaption>CRIMSON NEBULA</figcaption></figure><figure class="device" style="--glow:rgba(255,190,60,.3)"><button class="play" aria-label="Play DYSON ARRAY" data-gif="showcase/stage3-dysonarray.gif"><video muted loop playsinline preload="none" poster="media/stage3-dysonarray.jpg"><source src="media/stage3-dysonarray.webm" type="video/webm"><source src="media/stage3-dysonarray.mp4" type="video/mp4"></video></button><figcaption>DYSON ARRAY</figcaption></figure><figure class="device" style="--glow:rgba(255,120,40,.3)"><button class="play" aria-label="Play SOLAR CORONA" data-gif="showcase/stage4-solarcorona.gif"><video muted loop playsinline preload="none" poster="media/stage4-solarcorona.jpg"><source src="media/stage4-solarcorona.webm" type="video/webm"><source src="media/stage4-solarcorona.mp4" type="video/mp4"></video></button><figcaption>SOLAR CORONA</figcaption></figure><figure class="device" style="--glow:rgba(170,90,255,.3)"><button class="play" aria-label="Play THE QUASAR" data-gif="showcase/stage5-thequasar.gif"><video muted loop playsinline preload="none" poster="media/stage5-thequasar.jpg"><source src="media/stage5-thequasar.webm" type="video/webm"><source src="media/stage5-thequasar.mp4" type="video/mp4"></video></button><figcaption>THE QUASAR</figcaption></figure></div>
 
     <div class="screens"><figure class="crt"><img src="screenshots/home-pacman.png" width="320" height="240" loading="lazy" alt="The home screen, on the PAC-MAN card"></figure><figure class="crt"><img src="screenshots/pacman-play.png" width="320" height="240" loading="lazy" alt="PAC-MAN: NEON, with the ghosts turned blue"></figure><figure class="crt"><img src="screenshots/pacman-menu.png" width="320" height="240" loading="lazy" alt="PAC-MAN: its menu over a demo game"></figure><figure class="crt"><img src="screenshots/tetris-play.png" width="320" height="240" loading="lazy" alt="TETRIS: Marathon"></figure><figure class="crt"><img src="screenshots/title.png" width="320" height="240" loading="lazy" alt="QUASAR's title screen"></figure><figure class="crt"><img src="screenshots/stage4-solarcorona.png" width="320" height="240" loading="lazy" alt="QUASAR stage 4: Solar Corona, the Helios boss"></figure></div>
   </div>
@@ -543,6 +555,7 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
 <dialog id="lightbox" aria-label="Video">
   <button class="close" aria-label="Close">&#10005;</button>
   <video muted loop playsinline></video>
+  <img class="gif" alt="" hidden>
 </dialog>
 <div class="toast" id="toast" role="status"></div>
 
@@ -586,23 +599,56 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
   }
 
   // ------------------------------------------------------------ videos: play only while on screen
+  // The demos are the point of the page, so they play even with Reduce Motion on (they're
+  // silent). Where a browser won't autoplay video (an iPhone in Low Power Mode), the GIF
+  // of the same clip takes its place.
+  var noVideo = false;
+  function toGif(v) {
+    if (!v.parentNode) return;
+    var img = document.createElement('img');
+    img.className = 'gif';
+    img.alt = '';
+    img.src = v.parentNode.getAttribute('data-gif');
+    v.parentNode.replaceChild(img, v);
+  }
+  function start(v) {
+    if (noVideo) { toGif(v); return; }
+    v.muted = true;
+    var p = v.play();
+    if (p && p.catch) p.catch(function (err) {
+      if (err && err.name === 'NotAllowedError') { noVideo = true; document.querySelectorAll('.device video').forEach(toGif); }
+    });
+  }
   var vids = document.querySelectorAll('.device video');
-  if ('IntersectionObserver' in window && !still) {
+  if ('IntersectionObserver' in window) {
     var io = new IntersectionObserver(function (es) {
       es.forEach(function (e) {
-        if (e.isIntersecting) { var p = e.target.play(); if (p && p.catch) p.catch(function () {}); }
+        if (!e.target.parentNode) return;
+        if (e.isIntersecting) start(e.target);
         else e.target.pause();
       });
     }, { rootMargin: '120px' });
     vids.forEach(function (v) { io.observe(v); });
+  } else {
+    vids.forEach(start);
   }
 
   // ------------------------------------------------------------ click a device: see it big
-  var box = document.getElementById('lightbox'), big = box.querySelector('video');
+  var box = document.getElementById('lightbox'), big = box.querySelector('video'), bigGif = box.querySelector('img.gif');
   document.querySelectorAll('.device .play').forEach(function (b) {
     b.addEventListener('click', function () {
       var v = b.querySelector('video');
+      if (noVideo || !v) {
+        if (!box.showModal) return;
+        big.hidden = true;
+        bigGif.hidden = false;
+        bigGif.src = b.getAttribute('data-gif');
+        box.showModal();
+        return;
+      }
       if (!box.showModal) { v.paused ? v.play() : v.pause(); return; }
+      big.hidden = false;
+      bigGif.hidden = true;
       var srcs = v.querySelectorAll('source'), pick = srcs[srcs.length - 1].src;
       for (var i = 0; i < srcs.length; i++) { if (big.canPlayType(srcs[i].type)) { pick = srcs[i].src; break; } }
       big.src = pick;
@@ -611,7 +657,7 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
       var p = big.play(); if (p && p.catch) p.catch(function () {});
     });
   });
-  function shut() { big.pause(); big.removeAttribute('src'); big.load(); if (box.open) box.close(); }
+  function shut() { big.pause(); big.removeAttribute('src'); big.load(); bigGif.removeAttribute('src'); if (box.open) box.close(); }
   box.querySelector('.close').addEventListener('click', shut);
   box.addEventListener('click', function (e) { if (e.target === box) shut(); });
   box.addEventListener('cancel', function () { big.pause(); });
