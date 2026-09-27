@@ -1,0 +1,643 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QUASAR: a pocket arcade for the Coldcard Q</title>
+<meta name="description" content="Free, open-source firmware that turns a Coldcard Q into a handheld game console: PAC-MAN in neon, TETRIS and a shoot-'em-up, at 30 frames a second.">
+<meta name="theme-color" content="#07070c">
+<meta property="og:type" content="website">
+<meta property="og:title" content="QUASAR: a pocket arcade for the Coldcard Q">
+<meta property="og:description" content="Turn a Coldcard Q into a handheld game console. PAC-MAN in neon, TETRIS and a shoot-'em-up. Free and open source.">
+<meta property="og:url" content="https://ak1ra00.github.io/cc-q/">
+<meta property="og:image" content="https://ak1ra00.github.io/cc-q/media/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://ak1ra00.github.io/cc-q/media/og.png">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Space+Grotesk:wght@400;500;700&family=VT323&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07070c; --bg2: #0c0c14; --panel: #11111b; --panel2: #161624; --line: #25253a;
+  --text: #ecebf4; --muted: #a09fbb; --dim: #6c6b88;
+  --orange: #ff6a13; --orange2: #ff8a3d; --yellow: #ffd23c; --cyan: #3fe0ff; --pink: #ff4fd8; --purple: #9a5cff;
+  --pixel: "Press Start 2P", ui-monospace, monospace;
+  --sans: "Space Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --term: "VT323", ui-monospace, monospace;
+  --wrap: 1180px;
+}
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; scroll-padding-top: 76px; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 17px/1.6 var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+img, video, svg { display: block; max-width: 100%; }
+a { color: var(--orange2); text-decoration: none; }
+a:hover { text-decoration: underline; }
+.wrap { width: min(var(--wrap), calc(100% - 40px)); margin: 0 auto; }
+.pix { image-rendering: pixelated; }
+.eyebrow { font: 10px/1.8 var(--pixel); letter-spacing: .08em; color: var(--orange); text-transform: uppercase; }
+h1, h2, h3 { font-family: var(--sans); font-weight: 700; letter-spacing: -.02em; line-height: 1.05; margin: 0; }
+h2 { font-size: clamp(34px, 5vw, 58px); }
+h3 { font-size: clamp(24px, 3vw, 34px); }
+p { margin: 0 0 1em; }
+.lead { font-size: clamp(18px, 2vw, 21px); color: var(--muted); max-width: 42em; }
+section { position: relative; padding: clamp(72px, 10vw, 128px) 0; }
+.section-head { max-width: 760px; margin-bottom: 48px; }
+.section-head h2 { margin: 14px 0 18px; }
+
+/* ---------------------------------------------------------------- buttons */
+.btn { display: inline-flex; align-items: center; gap: 10px; padding: 16px 24px; border-radius: 999px; font: 11px/1 var(--pixel);
+  letter-spacing: .04em; text-transform: uppercase; border: 2px solid transparent; transition: transform .15s, box-shadow .15s, background .15s; cursor: pointer; }
+.btn:hover { text-decoration: none; transform: translateY(-2px); }
+.btn-primary { background: var(--orange); color: #120600; box-shadow: 0 0 0 0 rgba(255,106,19,.5), 0 10px 30px -8px rgba(255,106,19,.7); }
+.btn-primary:hover { box-shadow: 0 0 0 6px rgba(255,106,19,.18), 0 14px 36px -8px rgba(255,106,19,.9); }
+.btn-ghost { color: var(--text); border-color: var(--line); background: rgba(255,255,255,.02); }
+.btn-ghost:hover { border-color: var(--orange); }
+.blink { animation: blink 1.1s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+
+/* ---------------------------------------------------------------- nav */
+.nav { position: fixed; inset: 0 0 auto 0; z-index: 50; background: rgba(7,7,12,.72); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(255,255,255,.06); }
+.nav .wrap { display: flex; align-items: center; gap: 28px; height: 64px; }
+.logo { display: flex; align-items: center; gap: 12px; color: var(--text); font: 14px/1 var(--pixel); letter-spacing: .06em; }
+.logo:hover { text-decoration: none; }
+.logo svg { width: 24px; height: 24px; }
+.nav nav { display: flex; gap: 26px; margin-left: auto; }
+.nav nav a { color: var(--muted); font-size: 15px; font-weight: 500; }
+.nav nav a:hover { color: var(--text); text-decoration: none; }
+.nav .btn { padding: 11px 16px; font-size: 9px; }
+@media (max-width: 860px) { .nav nav { display: none; } .nav .btn { margin-left: auto; } }
+
+/* ---------------------------------------------------------------- hero */
+.hero { min-height: 100vh; min-height: 100svh; display: flex; align-items: center; padding: 110px 0 90px; overflow: hidden;
+  background: radial-gradient(1200px 600px at 75% 30%, rgba(255,106,19,.16), transparent 60%),
+              radial-gradient(900px 600px at 10% 90%, rgba(154,92,255,.16), transparent 60%), var(--bg); }
+#stars { position: absolute; inset: 0; width: 100%; height: 100%; }
+.floor { position: absolute; left: -50%; right: -50%; bottom: -2px; height: 42%; transform: perspective(420px) rotateX(62deg); transform-origin: 50% 100%;
+  background-image: linear-gradient(rgba(255,79,216,.55) 2px, transparent 2px), linear-gradient(90deg, rgba(255,79,216,.35) 2px, transparent 2px);
+  background-size: 64px 64px; animation: floor 2.4s linear infinite;
+  -webkit-mask-image: linear-gradient(to top, #000 10%, transparent 95%); mask-image: linear-gradient(to top, #000 10%, transparent 95%); }
+@keyframes floor { to { background-position: 0 64px, 0 0; } }
+.hero .wrap { position: relative; display: grid; grid-template-columns: 1.15fr .85fr; align-items: center; gap: 40px; }
+.hero h1 { font-size: clamp(44px, 7.2vw, 92px); margin: 20px 0 24px; }
+.hero h1 .hl { color: var(--orange); text-shadow: 0 0 40px rgba(255,106,19,.45); }
+.hero .lead { margin-bottom: 34px; }
+.cta { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
+.fine { margin-top: 22px; font-size: 14px; color: var(--dim); }
+.badges { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 30px; }
+.badge { font: 9px/1 var(--pixel); color: var(--muted); border: 1px solid var(--line); padding: 9px 11px; border-radius: 4px; background: rgba(255,255,255,.02); }
+.hero .device { justify-self: center; animation: float 6s ease-in-out infinite; }
+@keyframes float { 50% { transform: translateY(-12px); } }
+@media (max-width: 900px) {
+  .hero .wrap { grid-template-columns: 1fr; text-align: left; }
+  .hero .device { order: -1; margin-top: 10px; }
+}
+
+/* ---------------------------------------------------------------- devices (the showcase videos) */
+.device { margin: 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.device .play { padding: 0; border: 0; background: none; cursor: zoom-in; display: block; width: 100%;
+  filter: drop-shadow(0 26px 40px rgba(0,0,0,.65)) drop-shadow(0 0 30px var(--glow, rgba(255,106,19,.35))); }
+.device .play:focus-visible { outline: 2px solid var(--orange); outline-offset: 4px; border-radius: 22px; }
+.device .play:focus:not(:focus-visible) { outline: none; }
+.device video { width: 100%; height: auto; aspect-ratio: 560 / 886; background: transparent;
+  /* just the Coldcard Q, cut out of the clip's backdrop */
+  clip-path: inset(3.6% 6.8% 6.5% 6.8% round 5.4% / 3.4%); margin-bottom: -6.5%; }
+.device figcaption { font: 9px/1.4 var(--pixel); color: var(--muted); letter-spacing: .06em; text-align: center; }
+.device.big { width: min(360px, 78vw); }
+.device.big figcaption { display: none; }
+
+/* ---------------------------------------------------------------- ticker */
+.ticker { border-block: 1px solid var(--line); background: var(--bg2); overflow: hidden; white-space: nowrap; }
+.ticker div { display: inline-block; padding: 16px 0; font: 11px/1 var(--pixel); color: var(--yellow); animation: tick 38s linear infinite; }
+.ticker span { margin: 0 22px; }
+.ticker i { color: var(--orange); font-style: normal; }
+@keyframes tick { to { transform: translateX(-50%); } }
+
+/* ---------------------------------------------------------------- explain like I'm five */
+.eli5 { background: linear-gradient(var(--bg), var(--bg2) 55%, var(--bg)); }
+.tldr { display: inline-block; margin-top: 8px; padding: 14px 18px; border-left: 4px solid var(--yellow); background: rgba(255,210,60,.06);
+  font: 26px/1.2 var(--term); color: var(--yellow); }
+.cards { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 26px 24px 24px; position: relative; overflow: hidden; }
+.card::before { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(0deg, rgba(255,255,255,.018) 0 1px, transparent 1px 3px); pointer-events: none; }
+.card .num { font: 10px/1 var(--pixel); color: var(--dim); }
+.card svg { margin: 18px 0 20px; }
+.card h3 { font-size: 21px; margin-bottom: 10px; letter-spacing: -.01em; line-height: 1.2; }
+.card p { color: var(--muted); font-size: 16px; margin: 0; }
+.arrow { position: absolute; right: -14px; top: 50%; font: 12px var(--pixel); color: var(--orange); }
+.grownup { margin-top: 26px; color: var(--dim); font-size: 15px; }
+@media (max-width: 980px) { .cards { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .cards { grid-template-columns: 1fr; } }
+
+/* ---------------------------------------------------------------- pac-man divider */
+.chomp { position: relative; height: 34px; overflow: hidden; margin: 0 auto; width: min(var(--wrap), calc(100% - 40px)); }
+.chomp .dots { position: absolute; inset: 0; background: radial-gradient(circle, #ffc9a8 2.5px, transparent 3px) 0 50% / 34px 34px repeat-x; }
+.chomp .eaten { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: var(--bg); animation: eat 9s linear infinite; }
+.chomp .pac, .chomp .ghost { position: absolute; top: 5px; width: 24px; height: 24px; animation: run 9s linear infinite; }
+.chomp .pac { background: var(--yellow); border-radius: 50%; left: 0; margin-left: -12px;
+  animation: run 9s linear infinite, mouth .28s steps(1) infinite; }
+.chomp .ghost { left: 0; margin-left: -110px; animation: run 9s linear infinite; }
+.chomp .ghost svg { width: 24px; height: 24px; }
+@keyframes eat { from { width: 0; } to { width: 100%; } }
+@keyframes run { from { left: 0; } to { left: calc(100% + 130px); } }
+@keyframes mouth { 0% { clip-path: polygon(50% 50%, 100% 22%, 100% 0, 0 0, 0 100%, 100% 100%, 100% 78%); }
+                   50% { clip-path: polygon(50% 50%, 100% 48%, 100% 0, 0 0, 0 100%, 100% 100%, 100% 52%); } }
+
+/* ---------------------------------------------------------------- games */
+.game { display: grid; grid-template-columns: 380px 1fr; gap: clamp(30px, 6vw, 90px); align-items: center; padding: 56px 0; border-top: 1px solid var(--line); }
+.game:first-of-type { border-top: 0; }
+.game.flip { grid-template-columns: 1fr 380px; }
+.game.flip .main { order: 2; }
+.game .tag { display: inline-flex; gap: 8px; align-items: center; font: 9px/1 var(--pixel); padding: 7px 10px; border-radius: 4px; margin-bottom: 18px; }
+.tag.new { background: var(--yellow); color: #1a1200; }
+.tag.cls { background: rgba(63,224,255,.12); color: var(--cyan); }
+.tag.org { background: rgba(154,92,255,.14); color: #c6a8ff; }
+.game h3 { font-size: clamp(34px, 4.4vw, 52px); margin-bottom: 16px; }
+.game .lead { font-size: 18px; margin-bottom: 22px; }
+.ticks { list-style: none; padding: 0; margin: 0 0 28px; display: grid; gap: 10px; }
+.ticks li { padding-left: 30px; position: relative; color: var(--muted); }
+.ticks li b { color: var(--text); font-weight: 600; }
+.ticks li::before { content: ""; position: absolute; left: 4px; top: .55em; width: 10px; height: 10px; background: var(--c, var(--orange)); box-shadow: 0 0 10px var(--c, var(--orange)); }
+.clips { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; max-width: 620px; }
+.clips.five { grid-template-columns: repeat(5, 1fr); max-width: none; }
+@media (max-width: 980px) {
+  .game, .game.flip { grid-template-columns: 1fr; }
+  .game.flip .main { order: 0; }
+  .game .main { max-width: 340px; margin: 0 auto; }
+}
+@media (max-width: 720px) {
+  .clips.five { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: 42%; overflow-x: auto; scroll-snap-type: x mandatory; padding-bottom: 10px; }
+  .clips.five .device { scroll-snap-align: start; }
+}
+
+/* ---------------------------------------------------------------- screens */
+.screens { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; margin-top: 40px; }
+.crt { margin: 0; padding: 12px; border-radius: 16px; background: linear-gradient(145deg, #1d1d2b, #0e0e16); border: 1px solid var(--line); position: relative; }
+.crt img { width: 100%; height: auto; border-radius: 6px; image-rendering: pixelated; }
+.crt::after { content: ""; position: absolute; inset: 12px; border-radius: 6px; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.22) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 60%, rgba(0,0,0,.35)); }
+@media (max-width: 860px) { .screens { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 520px) { .screens { grid-template-columns: 1fr; } }
+
+/* ---------------------------------------------------------------- stats */
+.stats { display: grid; grid-template-columns: repeat(6, 1fr); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+.stat { background: var(--panel); padding: 30px 22px; }
+.stat b { display: block; font: 26px/1 var(--pixel); color: var(--c, var(--orange)); text-shadow: 0 0 18px var(--c, var(--orange)); margin-bottom: 16px; }
+.stat span { color: var(--muted); font-size: 15px; line-height: 1.4; display: block; }
+@media (max-width: 1000px) { .stats { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 560px) { .stats { grid-template-columns: repeat(2, 1fr); } .stat b { font-size: 20px; } }
+
+/* ---------------------------------------------------------------- install */
+.install { background: linear-gradient(var(--bg2), var(--bg)); }
+.need { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 30px; }
+.need span { display: inline-flex; align-items: center; gap: 10px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 999px; background: var(--panel); font-size: 15px; }
+.need svg { width: 18px; height: 18px; }
+.warn { display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: start; border: 1px solid rgba(255,106,19,.45); background: rgba(255,106,19,.07);
+  border-radius: 16px; padding: 20px 22px; margin-bottom: 36px; }
+.warn .ico { font: 18px/1 var(--pixel); color: var(--orange); padding-top: 4px; }
+.warn p { margin: 0 0 .5em; color: #f3dccd; } .warn p:last-child { margin: 0; }
+.steps { list-style: none; padding: 0; margin: 0; display: grid; gap: 16px; counter-reset: s; }
+.step { display: grid; grid-template-columns: 74px 1fr; gap: 22px; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 26px; }
+.step .n { width: 74px; height: 74px; display: grid; place-items: center; border-radius: 14px; font: 26px/1 var(--pixel); color: #120600; background: var(--orange);
+  box-shadow: inset -5px -5px 0 rgba(0,0,0,.22), inset 5px 5px 0 rgba(255,255,255,.22); }
+.step h3 { font-size: 23px; margin: 4px 0 10px; letter-spacing: -.01em; }
+.step p { color: var(--muted); margin: 0 0 .6em; }
+.step p:last-child { margin: 0; }
+.path { font: 22px/1.3 var(--term); color: var(--cyan); background: #0a0a12; border: 1px solid var(--line); border-radius: 8px; padding: 4px 10px; display: inline-block; }
+.sha { font: 18px/1.3 var(--term); color: var(--dim); word-break: break-all; margin-top: 12px; }
+.dl { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin: 14px 0 4px; }
+.back { margin-top: 26px; border: 1px dashed rgba(63,224,255,.5); background: rgba(63,224,255,.05); border-radius: 18px; padding: 26px; display: grid; grid-template-columns: auto 1fr; gap: 22px; }
+.back h3 { font-size: 23px; margin: 2px 0 10px; }
+.back p { color: var(--muted); margin: 0; }
+@media (max-width: 560px) { .step, .back { grid-template-columns: 1fr; } .step .n { width: 56px; height: 56px; font-size: 20px; } }
+
+/* ---------------------------------------------------------------- controls */
+.pads { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+.pad { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 24px; }
+.pad h4 { margin: 0 0 16px; font: 11px/1.4 var(--pixel); color: var(--yellow); }
+.pad dl { margin: 0; display: grid; gap: 10px; }
+.pad div { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; }
+.pad dt { white-space: nowrap; }
+.pad dd { margin: 0; color: var(--muted); font-size: 15px; }
+code { font: 20px/1 var(--term); color: var(--cyan); }
+kbd.ar { font: 700 12px/1 var(--sans); padding: 4px 7px 5px; }
+kbd { display: inline-block; min-width: 26px; padding: 5px 7px 6px; border-radius: 6px; background: linear-gradient(#2b2b3d, #1b1b28); border: 1px solid #3a3a52;
+  box-shadow: 0 3px 0 #0a0a10; font: 9px/1 var(--pixel); color: var(--text); text-align: center; margin: 0 2px 4px 0; }
+.all { margin-top: 20px; color: var(--muted); }
+@media (max-width: 1000px) { .pads { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .pads { grid-template-columns: 1fr; } }
+
+/* ---------------------------------------------------------------- faq */
+.faq { max-width: 880px; }
+details { border-bottom: 1px solid var(--line); }
+summary { list-style: none; cursor: pointer; padding: 22px 44px 22px 0; font-size: 19px; font-weight: 600; position: relative; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; position: absolute; right: 6px; top: 18px; font: 16px/1.6 var(--pixel); color: var(--orange); transition: transform .2s; }
+details[open] summary::after { transform: rotate(45deg); }
+details p { color: var(--muted); margin: 0 0 22px; max-width: 46em; }
+
+/* ---------------------------------------------------------------- footer */
+footer { border-top: 1px solid var(--line); padding: 56px 0 70px; background: var(--bg2); color: var(--dim); font-size: 14px; }
+footer .top { display: flex; flex-wrap: wrap; gap: 24px; justify-content: space-between; align-items: center; margin-bottom: 28px; }
+footer .links { display: flex; flex-wrap: wrap; gap: 22px; }
+footer .links a { color: var(--muted); }
+footer p { max-width: 900px; }
+.coin { font: 10px/1 var(--pixel); color: var(--yellow); }
+
+/* ---------------------------------------------------------------- lightbox, easter egg */
+dialog { border: 0; padding: 0; background: transparent; max-width: 92vw; }
+dialog::backdrop { background: rgba(3,3,8,.86); backdrop-filter: blur(6px); }
+dialog video { height: min(88vh, 900px); width: auto; aspect-ratio: 560 / 886; clip-path: inset(3.6% 6.8% 6.5% 6.8% round 5.4% / 3.4%); }
+dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel); color: var(--text); background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 12px 14px; cursor: pointer; }
+.toast { position: fixed; left: 50%; bottom: 30px; transform: translate(-50%, 160%); opacity: 0; visibility: hidden; transition: transform .35s, opacity .35s, visibility .35s; z-index: 80; font: 12px/1.6 var(--pixel);
+  background: #120600; color: var(--yellow); border: 2px solid var(--orange); padding: 14px 18px; border-radius: 8px; box-shadow: 0 0 30px rgba(255,106,19,.5); }
+.toast.on { transform: translate(-50%, 0); opacity: 1; visibility: visible; }
+.boo { position: fixed; top: 0; z-index: 70; width: 36px; pointer-events: none; animation: boo 4s linear forwards; }
+@keyframes boo { from { transform: translate(-60px, var(--y)); } to { transform: translate(110vw, calc(var(--y) - 40px)); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  html { scroll-behavior: auto; }
+}
+</style>
+</head>
+<body>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="logo" href="#top" aria-label="QUASAR, back to the top"><svg class="pix" viewBox="0 0 12 12" width="24" height="24" shape-rendering="crispEdges" role="img" aria-label=""><rect x="4" y="0" width="4" height="1" fill="#ff6a13"/><rect x="2" y="1" width="8" height="1" fill="#ff6a13"/><rect x="1" y="2" width="10" height="1" fill="#ff6a13"/><rect x="1" y="3" width="1" height="1" fill="#ff6a13"/><rect x="2" y="3" width="2" height="1" fill="#ffffff"/><rect x="4" y="3" width="3" height="1" fill="#ff6a13"/><rect x="7" y="3" width="2" height="1" fill="#ffffff"/><rect x="9" y="3" width="2" height="1" fill="#ff6a13"/><rect x="0" y="4" width="1" height="1" fill="#ff6a13"/><rect x="1" y="4" width="2" height="1" fill="#ffffff"/><rect x="3" y="4" width="2" height="1" fill="#2a3cff"/><rect x="5" y="4" width="1" height="1" fill="#ff6a13"/><rect x="6" y="4" width="2" height="1" fill="#ffffff"/><rect x="8" y="4" width="2" height="1" fill="#2a3cff"/><rect x="10" y="4" width="2" height="1" fill="#ff6a13"/><rect x="0" y="5" width="1" height="1" fill="#ff6a13"/><rect x="1" y="5" width="2" height="1" fill="#ffffff"/><rect x="3" y="5" width="2" height="1" fill="#2a3cff"/><rect x="5" y="5" width="1" height="1" fill="#ff6a13"/><rect x="6" y="5" width="2" height="1" fill="#ffffff"/><rect x="8" y="5" width="2" height="1" fill="#2a3cff"/><rect x="10" y="5" width="2" height="1" fill="#ff6a13"/><rect x="0" y="6" width="2" height="1" fill="#ff6a13"/><rect x="2" y="6" width="2" height="1" fill="#ffffff"/><rect x="4" y="6" width="3" height="1" fill="#ff6a13"/><rect x="7" y="6" width="2" height="1" fill="#ffffff"/><rect x="9" y="6" width="3" height="1" fill="#ff6a13"/><rect x="0" y="7" width="12" height="1" fill="#ff6a13"/><rect x="0" y="8" width="12" height="1" fill="#ff6a13"/><rect x="0" y="9" width="12" height="1" fill="#ff6a13"/><rect x="0" y="10" width="2" height="1" fill="#ff6a13"/><rect x="3" y="10" width="3" height="1" fill="#ff6a13"/><rect x="7" y="10" width="3" height="1" fill="#ff6a13"/><rect x="11" y="10" width="1" height="1" fill="#ff6a13"/><rect x="0" y="11" width="1" height="1" fill="#ff6a13"/><rect x="4" y="11" width="1" height="1" fill="#ff6a13"/><rect x="8" y="11" width="1" height="1" fill="#ff6a13"/></svg><span>QUASAR</span></a>
+    <nav aria-label="Sections">
+      <a href="#what">What is it?</a>
+      <a href="#games">Games</a>
+      <a href="#install">Install</a>
+      <a href="#faq">FAQ</a>
+      <a href="https://github.com/Ak1ra00/cc-q">GitHub</a>
+    </nav>
+    <a class="btn btn-primary" href="https://github.com/Ak1ra00/cc-q/raw/main/release/quasar-1.4.0-q1.dfu" download>Download</a>
+  </div>
+</header>
+
+<main id="top">
+
+<section class="hero">
+  <canvas id="stars" aria-hidden="true"></canvas>
+  <div class="floor" aria-hidden="true"></div>
+  <div class="wrap">
+    <div>
+      <div class="eyebrow">Firmware 1.4.0 &middot; free &middot; open source</div>
+      <h1>Your Coldcard&nbsp;Q, but it's a <span class="hl">game&nbsp;console.</span></h1>
+      <p class="lead">QUASAR is fan-made firmware that turns the Coldcard Q, the little Bitcoin gadget with a real keyboard and a colour
+        screen, into a pocket arcade. It comes with three games, runs at 30 frames a second, and every pixel is drawn in C.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/Ak1ra00/cc-q/raw/main/release/quasar-1.4.0-q1.dfu" download><span class="blink">&#9654;</span> Download 1.4.0</a>
+        <a class="btn btn-ghost" href="#install">How to install</a>
+      </div>
+      <p class="fine">Not made by or affiliated with Coinkite. You can switch back to the official firmware any time.</p>
+      <div class="badges" aria-label="At a glance">
+        <span class="badge">PAC-MAN</span><span class="badge">TETRIS</span><span class="badge">SHOOT-'EM-UP</span><span class="badge">30 FPS</span><span class="badge">0 WALLET CODE</span>
+      </div>
+    </div>
+    <figure class="device big" style="--glow:rgba(255,150,40,.35)"><button class="play" aria-label="Play Q ARCADE"><video muted loop playsinline preload="none" poster="media/home-screen.jpg"><source src="media/home-screen.webm" type="video/webm"><source src="media/home-screen.mp4" type="video/mp4"></video></button><figcaption>Q ARCADE</figcaption></figure>
+  </div>
+</section>
+
+<div class="ticker" aria-hidden="true"><div><span>PAC-MAN IN NEON</span><i>&#9733;</i><span>TETRIS</span><i>&#9733;</i><span>FIVE BOSSES</span><i>&#9733;</i><span>30 FPS</span><i>&#9733;</i><span>320&times;240</span><i>&#9733;</i><span>HOLD POWER TO SAVE</span><i>&#9733;</i><span>NO WALLET CODE</span><i>&#9733;</i><span>FREE &amp; OPEN SOURCE</span><i>&#9733;</i><span>INSERT COIN</span><i>&#9733;</i><span>PAC-MAN IN NEON</span><i>&#9733;</i><span>TETRIS</span><i>&#9733;</i><span>FIVE BOSSES</span><i>&#9733;</i><span>30 FPS</span><i>&#9733;</i><span>320&times;240</span><i>&#9733;</i><span>HOLD POWER TO SAVE</span><i>&#9733;</i><span>NO WALLET CODE</span><i>&#9733;</i><span>FREE &amp; OPEN SOURCE</span><i>&#9733;</i><span>INSERT COIN</span><i>&#9733;</i></div></div>
+
+<section class="eli5" id="what">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">What is this?</div>
+      <h2>Explain it like I'm five.</h2>
+      <div class="tldr">It turns a Bitcoin gadget into a handheld game console. That's it. That's the project.</div>
+    </div>
+    <div class="cards">
+      <article class="card"><div class="num">01</div><svg class="pix" viewBox="0 0 14 18" width="56" height="72" shape-rendering="crispEdges" role="img" aria-label="A Coldcard Q"><rect x="1" y="0" width="12" height="1" fill="#4a4a66"/><rect x="0" y="1" width="1" height="1" fill="#4a4a66"/><rect x="1" y="1" width="12" height="1" fill="#17171f"/><rect x="13" y="1" width="1" height="1" fill="#4a4a66"/><rect x="0" y="2" width="1" height="1" fill="#4a4a66"/><rect x="1" y="2" width="1" height="1" fill="#17171f"/><rect x="2" y="2" width="10" height="1" fill="#7c7c9c"/><rect x="12" y="2" width="1" height="1" fill="#17171f"/><rect x="13" y="2" width="1" height="1" fill="#4a4a66"/><rect x="0" y="3" width="1" height="1" fill="#4a4a66"/><rect x="1" y="3" width="1" height="1" fill="#17171f"/><rect x="2" y="3" width="1" height="1" fill="#7c7c9c"/><rect x="3" y="3" width="8" height="1" fill="#0d2f66"/><rect x="11" y="3" width="1" height="1" fill="#7c7c9c"/><rect x="12" y="3" width="1" height="1" fill="#17171f"/><rect x="13" y="3" width="1" height="1" fill="#4a4a66"/><rect x="0" y="4" width="1" height="1" fill="#4a4a66"/><rect x="1" y="4" width="1" height="1" fill="#17171f"/><rect x="2" y="4" width="1" height="1" fill="#7c7c9c"/><rect x="3" y="4" width="8" height="1" fill="#0d2f66"/><rect x="11" y="4" width="1" height="1" fill="#7c7c9c"/><rect x="12" y="4" width="1" height="1" fill="#17171f"/><rect x="13" y="4" width="1" height="1" fill="#4a4a66"/><rect x="0" y="5" width="1" height="1" fill="#4a4a66"/><rect x="1" y="5" width="1" height="1" fill="#17171f"/><rect x="2" y="5" width="1" height="1" fill="#7c7c9c"/><rect x="3" y="5" width="2" height="1" fill="#0d2f66"/><rect x="5" y="5" width="1" height="1" fill="#ffd23c"/><rect x="6" y="5" width="2" height="1" fill="#0d2f66"/><rect x="8" y="5" width="1" height="1" fill="#ff3050"/><rect x="9" y="5" width="2" height="1" fill="#0d2f66"/><rect x="11" y="5" width="1" height="1" fill="#7c7c9c"/><rect x="12" y="5" width="1" height="1" fill="#17171f"/><rect x="13" y="5" width="1" height="1" fill="#4a4a66"/><rect x="0" y="6" width="1" height="1" fill="#4a4a66"/><rect x="1" y="6" width="1" height="1" fill="#17171f"/><rect x="2" y="6" width="1" height="1" fill="#7c7c9c"/><rect x="3" y="6" width="8" height="1" fill="#0d2f66"/><rect x="11" y="6" width="1" height="1" fill="#7c7c9c"/><rect x="12" y="6" width="1" height="1" fill="#17171f"/><rect x="13" y="6" width="1" height="1" fill="#4a4a66"/><rect x="0" y="7" width="1" height="1" fill="#4a4a66"/><rect x="1" y="7" width="1" height="1" fill="#17171f"/><rect x="2" y="7" width="10" height="1" fill="#7c7c9c"/><rect x="12" y="7" width="1" height="1" fill="#17171f"/><rect x="13" y="7" width="1" height="1" fill="#4a4a66"/><rect x="0" y="8" width="1" height="1" fill="#4a4a66"/><rect x="1" y="8" width="12" height="1" fill="#17171f"/><rect x="13" y="8" width="1" height="1" fill="#4a4a66"/><rect x="0" y="9" width="1" height="1" fill="#4a4a66"/><rect x="1" y="9" width="1" height="1" fill="#17171f"/><rect x="2" y="9" width="2" height="1" fill="#ff6a13"/><rect x="4" y="9" width="2" height="1" fill="#17171f"/><rect x="6" y="9" width="2" height="1" fill="#26263a"/><rect x="8" y="9" width="2" height="1" fill="#17171f"/><rect x="10" y="9" width="2" height="1" fill="#ff6a13"/><rect x="12" y="9" width="1" height="1" fill="#17171f"/><rect x="13" y="9" width="1" height="1" fill="#4a4a66"/><rect x="0" y="10" width="1" height="1" fill="#4a4a66"/><rect x="1" y="10" width="12" height="1" fill="#17171f"/><rect x="13" y="10" width="1" height="1" fill="#4a4a66"/><rect x="0" y="11" width="1" height="1" fill="#4a4a66"/><rect x="1" y="11" width="1" height="1" fill="#17171f"/><rect x="2" y="11" width="1" height="1" fill="#26263a"/><rect x="3" y="11" width="1" height="1" fill="#17171f"/><rect x="4" y="11" width="1" height="1" fill="#26263a"/><rect x="5" y="11" width="1" height="1" fill="#17171f"/><rect x="6" y="11" width="1" height="1" fill="#26263a"/><rect x="7" y="11" width="1" height="1" fill="#17171f"/><rect x="8" y="11" width="1" height="1" fill="#26263a"/><rect x="9" y="11" width="1" height="1" fill="#17171f"/><rect x="10" y="11" width="1" height="1" fill="#26263a"/><rect x="11" y="11" width="2" height="1" fill="#17171f"/><rect x="13" y="11" width="1" height="1" fill="#4a4a66"/><rect x="0" y="12" width="1" height="1" fill="#4a4a66"/><rect x="1" y="12" width="12" height="1" fill="#17171f"/><rect x="13" y="12" width="1" height="1" fill="#4a4a66"/><rect x="0" y="13" width="1" height="1" fill="#4a4a66"/><rect x="1" y="13" width="1" height="1" fill="#17171f"/><rect x="2" y="13" width="1" height="1" fill="#26263a"/><rect x="3" y="13" width="1" height="1" fill="#17171f"/><rect x="4" y="13" width="1" height="1" fill="#26263a"/><rect x="5" y="13" width="1" height="1" fill="#17171f"/><rect x="6" y="13" width="1" height="1" fill="#26263a"/><rect x="7" y="13" width="1" height="1" fill="#17171f"/><rect x="8" y="13" width="1" height="1" fill="#26263a"/><rect x="9" y="13" width="1" height="1" fill="#17171f"/><rect x="10" y="13" width="1" height="1" fill="#26263a"/><rect x="11" y="13" width="2" height="1" fill="#17171f"/><rect x="13" y="13" width="1" height="1" fill="#4a4a66"/><rect x="0" y="14" width="1" height="1" fill="#4a4a66"/><rect x="1" y="14" width="12" height="1" fill="#17171f"/><rect x="13" y="14" width="1" height="1" fill="#4a4a66"/><rect x="0" y="15" width="1" height="1" fill="#4a4a66"/><rect x="1" y="15" width="2" height="1" fill="#17171f"/><rect x="3" y="15" width="8" height="1" fill="#26263a"/><rect x="11" y="15" width="2" height="1" fill="#17171f"/><rect x="13" y="15" width="1" height="1" fill="#4a4a66"/><rect x="0" y="16" width="1" height="1" fill="#4a4a66"/><rect x="1" y="16" width="12" height="1" fill="#17171f"/><rect x="13" y="16" width="1" height="1" fill="#4a4a66"/><rect x="1" y="17" width="12" height="1" fill="#4a4a66"/></svg>
+        <h3>This is a Coldcard&nbsp;Q.</h3>
+        <p>It's a little computer people use to keep their Bitcoin safe. It has a screen, a proper keyboard and a memory-card slot.</p></article>
+      <article class="card"><div class="num">02</div><svg class="pix" viewBox="0 0 14 15" width="56" height="60" shape-rendering="crispEdges" role="img" aria-label="A chip"><rect x="2" y="0" width="1" height="1" fill="#ff6a13"/><rect x="4" y="0" width="1" height="1" fill="#ff6a13"/><rect x="6" y="0" width="1" height="1" fill="#ff6a13"/><rect x="8" y="0" width="1" height="1" fill="#ff6a13"/><rect x="10" y="0" width="1" height="1" fill="#ff6a13"/><rect x="2" y="1" width="1" height="1" fill="#ff6a13"/><rect x="4" y="1" width="1" height="1" fill="#ff6a13"/><rect x="6" y="1" width="1" height="1" fill="#ff6a13"/><rect x="8" y="1" width="1" height="1" fill="#ff6a13"/><rect x="10" y="1" width="1" height="1" fill="#ff6a13"/><rect x="0" y="2" width="13" height="1" fill="#4a4a66"/><rect x="0" y="3" width="1" height="1" fill="#4a4a66"/><rect x="1" y="3" width="11" height="1" fill="#17171f"/><rect x="12" y="3" width="1" height="1" fill="#4a4a66"/><rect x="0" y="4" width="1" height="1" fill="#4a4a66"/><rect x="1" y="4" width="1" height="1" fill="#17171f"/><rect x="2" y="4" width="9" height="1" fill="#9a5cff"/><rect x="11" y="4" width="1" height="1" fill="#17171f"/><rect x="12" y="4" width="1" height="1" fill="#4a4a66"/><rect x="13" y="4" width="1" height="1" fill="#ff6a13"/><rect x="0" y="5" width="1" height="1" fill="#4a4a66"/><rect x="1" y="5" width="1" height="1" fill="#17171f"/><rect x="2" y="5" width="1" height="1" fill="#9a5cff"/><rect x="3" y="5" width="7" height="1" fill="#17171f"/><rect x="10" y="5" width="1" height="1" fill="#9a5cff"/><rect x="11" y="5" width="1" height="1" fill="#17171f"/><rect x="12" y="5" width="1" height="1" fill="#4a4a66"/><rect x="0" y="6" width="1" height="1" fill="#4a4a66"/><rect x="1" y="6" width="1" height="1" fill="#17171f"/><rect x="2" y="6" width="1" height="1" fill="#9a5cff"/><rect x="3" y="6" width="1" height="1" fill="#17171f"/><rect x="4" y="6" width="5" height="1" fill="#3fe0ff"/><rect x="9" y="6" width="1" height="1" fill="#17171f"/><rect x="10" y="6" width="1" height="1" fill="#9a5cff"/><rect x="11" y="6" width="1" height="1" fill="#17171f"/><rect x="12" y="6" width="1" height="1" fill="#4a4a66"/><rect x="13" y="6" width="1" height="1" fill="#ff6a13"/><rect x="0" y="7" width="1" height="1" fill="#4a4a66"/><rect x="1" y="7" width="1" height="1" fill="#17171f"/><rect x="2" y="7" width="1" height="1" fill="#9a5cff"/><rect x="3" y="7" width="1" height="1" fill="#17171f"/><rect x="4" y="7" width="1" height="1" fill="#3fe0ff"/><rect x="5" y="7" width="3" height="1" fill="#17171f"/><rect x="8" y="7" width="1" height="1" fill="#3fe0ff"/><rect x="9" y="7" width="1" height="1" fill="#17171f"/><rect x="10" y="7" width="1" height="1" fill="#9a5cff"/><rect x="11" y="7" width="1" height="1" fill="#17171f"/><rect x="12" y="7" width="1" height="1" fill="#4a4a66"/><rect x="0" y="8" width="1" height="1" fill="#4a4a66"/><rect x="1" y="8" width="1" height="1" fill="#17171f"/><rect x="2" y="8" width="1" height="1" fill="#9a5cff"/><rect x="3" y="8" width="1" height="1" fill="#17171f"/><rect x="4" y="8" width="5" height="1" fill="#3fe0ff"/><rect x="9" y="8" width="1" height="1" fill="#17171f"/><rect x="10" y="8" width="1" height="1" fill="#9a5cff"/><rect x="11" y="8" width="1" height="1" fill="#17171f"/><rect x="12" y="8" width="1" height="1" fill="#4a4a66"/><rect x="13" y="8" width="1" height="1" fill="#ff6a13"/><rect x="0" y="9" width="1" height="1" fill="#4a4a66"/><rect x="1" y="9" width="1" height="1" fill="#17171f"/><rect x="2" y="9" width="1" height="1" fill="#9a5cff"/><rect x="3" y="9" width="7" height="1" fill="#17171f"/><rect x="10" y="9" width="1" height="1" fill="#9a5cff"/><rect x="11" y="9" width="1" height="1" fill="#17171f"/><rect x="12" y="9" width="1" height="1" fill="#4a4a66"/><rect x="0" y="10" width="1" height="1" fill="#4a4a66"/><rect x="1" y="10" width="1" height="1" fill="#17171f"/><rect x="2" y="10" width="9" height="1" fill="#9a5cff"/><rect x="11" y="10" width="1" height="1" fill="#17171f"/><rect x="12" y="10" width="1" height="1" fill="#4a4a66"/><rect x="13" y="10" width="1" height="1" fill="#ff6a13"/><rect x="0" y="11" width="1" height="1" fill="#4a4a66"/><rect x="1" y="11" width="11" height="1" fill="#17171f"/><rect x="12" y="11" width="1" height="1" fill="#4a4a66"/><rect x="0" y="12" width="13" height="1" fill="#4a4a66"/><rect x="2" y="13" width="1" height="1" fill="#ff6a13"/><rect x="4" y="13" width="1" height="1" fill="#ff6a13"/><rect x="6" y="13" width="1" height="1" fill="#ff6a13"/><rect x="8" y="13" width="1" height="1" fill="#ff6a13"/><rect x="10" y="13" width="1" height="1" fill="#ff6a13"/><rect x="2" y="14" width="1" height="1" fill="#ff6a13"/><rect x="4" y="14" width="1" height="1" fill="#ff6a13"/><rect x="6" y="14" width="1" height="1" fill="#ff6a13"/><rect x="8" y="14" width="1" height="1" fill="#ff6a13"/><rect x="10" y="14" width="1" height="1" fill="#ff6a13"/></svg>
+        <h3>Every gadget has a brain.</h3>
+        <p>That brain is a program called <b>firmware</b>. It decides what happens when you switch the gadget on.</p></article>
+      <article class="card"><div class="num">03</div><svg class="pix" viewBox="0 0 14 14" width="56" height="56" shape-rendering="crispEdges" role="img" aria-label="A ghost from the games"><rect x="5" y="0" width="4" height="1" fill="#ff4fd8"/><rect x="3" y="1" width="8" height="1" fill="#ff4fd8"/><rect x="2" y="2" width="10" height="1" fill="#ff4fd8"/><rect x="1" y="3" width="2" height="1" fill="#ff4fd8"/><rect x="3" y="3" width="2" height="1" fill="#ffffff"/><rect x="5" y="3" width="4" height="1" fill="#ff4fd8"/><rect x="9" y="3" width="2" height="1" fill="#ffffff"/><rect x="11" y="3" width="2" height="1" fill="#ff4fd8"/><rect x="1" y="4" width="1" height="1" fill="#ff4fd8"/><rect x="2" y="4" width="4" height="1" fill="#ffffff"/><rect x="6" y="4" width="2" height="1" fill="#ff4fd8"/><rect x="8" y="4" width="4" height="1" fill="#ffffff"/><rect x="12" y="4" width="1" height="1" fill="#ff4fd8"/><rect x="1" y="5" width="1" height="1" fill="#ff4fd8"/><rect x="2" y="5" width="2" height="1" fill="#ffffff"/><rect x="4" y="5" width="2" height="1" fill="#2a3cff"/><rect x="6" y="5" width="2" height="1" fill="#ff4fd8"/><rect x="8" y="5" width="2" height="1" fill="#ffffff"/><rect x="10" y="5" width="2" height="1" fill="#2a3cff"/><rect x="12" y="5" width="1" height="1" fill="#ff4fd8"/><rect x="0" y="6" width="2" height="1" fill="#ff4fd8"/><rect x="2" y="6" width="2" height="1" fill="#ffffff"/><rect x="4" y="6" width="2" height="1" fill="#2a3cff"/><rect x="6" y="6" width="2" height="1" fill="#ff4fd8"/><rect x="8" y="6" width="2" height="1" fill="#ffffff"/><rect x="10" y="6" width="2" height="1" fill="#2a3cff"/><rect x="12" y="6" width="2" height="1" fill="#ff4fd8"/><rect x="0" y="7" width="3" height="1" fill="#ff4fd8"/><rect x="3" y="7" width="2" height="1" fill="#ffffff"/><rect x="5" y="7" width="4" height="1" fill="#ff4fd8"/><rect x="9" y="7" width="2" height="1" fill="#ffffff"/><rect x="11" y="7" width="3" height="1" fill="#ff4fd8"/><rect x="0" y="8" width="14" height="1" fill="#ff4fd8"/><rect x="0" y="9" width="14" height="1" fill="#ff4fd8"/><rect x="0" y="10" width="14" height="1" fill="#ff4fd8"/><rect x="0" y="11" width="14" height="1" fill="#ff4fd8"/><rect x="0" y="12" width="2" height="1" fill="#ff4fd8"/><rect x="3" y="12" width="3" height="1" fill="#ff4fd8"/><rect x="8" y="12" width="3" height="1" fill="#ff4fd8"/><rect x="12" y="12" width="2" height="1" fill="#ff4fd8"/><rect x="0" y="13" width="1" height="1" fill="#ff4fd8"/><rect x="4" y="13" width="2" height="1" fill="#ff4fd8"/><rect x="8" y="13" width="2" height="1" fill="#ff4fd8"/><rect x="13" y="13" width="1" height="1" fill="#ff4fd8"/></svg>
+        <h3>QUASAR is a different brain.</h3>
+        <p>Put it in and the Coldcard wakes up as a game console. There's no wallet in it at all, not even one line of Bitcoin code.</p></article>
+      <article class="card"><div class="num">04</div><svg class="pix" viewBox="0 0 12 13" width="60" height="65" shape-rendering="crispEdges" role="img" aria-label="A microSD card"><rect x="3" y="0" width="9" height="1" fill="#4a4a66"/><rect x="2" y="1" width="1" height="1" fill="#4a4a66"/><rect x="3" y="1" width="2" height="1" fill="#ffd23c"/><rect x="5" y="1" width="1" height="1" fill="#ff6a13"/><rect x="6" y="1" width="2" height="1" fill="#ffd23c"/><rect x="8" y="1" width="1" height="1" fill="#ff6a13"/><rect x="9" y="1" width="2" height="1" fill="#ffd23c"/><rect x="11" y="1" width="1" height="1" fill="#4a4a66"/><rect x="1" y="2" width="2" height="1" fill="#4a4a66"/><rect x="3" y="2" width="2" height="1" fill="#ffd23c"/><rect x="5" y="2" width="1" height="1" fill="#ff6a13"/><rect x="6" y="2" width="2" height="1" fill="#ffd23c"/><rect x="8" y="2" width="1" height="1" fill="#ff6a13"/><rect x="9" y="2" width="2" height="1" fill="#ffd23c"/><rect x="11" y="2" width="1" height="1" fill="#4a4a66"/><rect x="0" y="3" width="1" height="1" fill="#4a4a66"/><rect x="1" y="3" width="10" height="1" fill="#17171f"/><rect x="11" y="3" width="1" height="1" fill="#4a4a66"/><rect x="0" y="4" width="1" height="1" fill="#4a4a66"/><rect x="1" y="4" width="10" height="1" fill="#17171f"/><rect x="11" y="4" width="1" height="1" fill="#4a4a66"/><rect x="0" y="5" width="1" height="1" fill="#4a4a66"/><rect x="1" y="5" width="2" height="1" fill="#17171f"/><rect x="3" y="5" width="6" height="1" fill="#3ddc84"/><rect x="9" y="5" width="2" height="1" fill="#17171f"/><rect x="11" y="5" width="1" height="1" fill="#4a4a66"/><rect x="0" y="6" width="1" height="1" fill="#4a4a66"/><rect x="1" y="6" width="2" height="1" fill="#17171f"/><rect x="3" y="6" width="1" height="1" fill="#3ddc84"/><rect x="4" y="6" width="4" height="1" fill="#17171f"/><rect x="8" y="6" width="1" height="1" fill="#3ddc84"/><rect x="9" y="6" width="2" height="1" fill="#17171f"/><rect x="11" y="6" width="1" height="1" fill="#4a4a66"/><rect x="0" y="7" width="1" height="1" fill="#4a4a66"/><rect x="1" y="7" width="2" height="1" fill="#17171f"/><rect x="3" y="7" width="1" height="1" fill="#3ddc84"/><rect x="4" y="7" width="1" height="1" fill="#17171f"/><rect x="5" y="7" width="2" height="1" fill="#3ddc84"/><rect x="7" y="7" width="1" height="1" fill="#17171f"/><rect x="8" y="7" width="1" height="1" fill="#3ddc84"/><rect x="9" y="7" width="2" height="1" fill="#17171f"/><rect x="11" y="7" width="1" height="1" fill="#4a4a66"/><rect x="0" y="8" width="1" height="1" fill="#4a4a66"/><rect x="1" y="8" width="2" height="1" fill="#17171f"/><rect x="3" y="8" width="1" height="1" fill="#3ddc84"/><rect x="4" y="8" width="4" height="1" fill="#17171f"/><rect x="8" y="8" width="1" height="1" fill="#3ddc84"/><rect x="9" y="8" width="2" height="1" fill="#17171f"/><rect x="11" y="8" width="1" height="1" fill="#4a4a66"/><rect x="0" y="9" width="1" height="1" fill="#4a4a66"/><rect x="1" y="9" width="2" height="1" fill="#17171f"/><rect x="3" y="9" width="6" height="1" fill="#3ddc84"/><rect x="9" y="9" width="2" height="1" fill="#17171f"/><rect x="11" y="9" width="1" height="1" fill="#4a4a66"/><rect x="0" y="10" width="1" height="1" fill="#4a4a66"/><rect x="1" y="10" width="10" height="1" fill="#17171f"/><rect x="11" y="10" width="1" height="1" fill="#4a4a66"/><rect x="0" y="11" width="1" height="1" fill="#4a4a66"/><rect x="1" y="11" width="10" height="1" fill="#17171f"/><rect x="11" y="11" width="1" height="1" fill="#4a4a66"/><rect x="0" y="12" width="12" height="1" fill="#4a4a66"/></svg>
+        <h3>Want the old one back?</h3>
+        <p>Pop in a memory card with the official firmware and it's a normal Coldcard again in a couple of minutes.</p></article>
+    </div>
+    <p class="grownup">The grown-up version: QUASAR is MicroPython's STM32 port for the Coldcard Q, with the games compiled in as a native C module
+      and signed with the public developer key. Coinkite's own bootloader still checks and installs it.
+      <a href="https://github.com/Ak1ra00/cc-q/blob/main/SECURITY.md">Read the security notes</a>.</p>
+  </div>
+</section>
+
+<div class="chomp" aria-hidden="true"><div class="dots"></div><div class="eaten"></div><div class="pac"></div><div class="ghost"><svg class="pix" viewBox="0 0 14 14" width="28" height="28" shape-rendering="crispEdges" role="img" aria-label=""><rect x="5" y="0" width="4" height="1" fill="#ff3050"/><rect x="3" y="1" width="8" height="1" fill="#ff3050"/><rect x="2" y="2" width="10" height="1" fill="#ff3050"/><rect x="1" y="3" width="2" height="1" fill="#ff3050"/><rect x="3" y="3" width="2" height="1" fill="#ffffff"/><rect x="5" y="3" width="4" height="1" fill="#ff3050"/><rect x="9" y="3" width="2" height="1" fill="#ffffff"/><rect x="11" y="3" width="2" height="1" fill="#ff3050"/><rect x="1" y="4" width="1" height="1" fill="#ff3050"/><rect x="2" y="4" width="4" height="1" fill="#ffffff"/><rect x="6" y="4" width="2" height="1" fill="#ff3050"/><rect x="8" y="4" width="4" height="1" fill="#ffffff"/><rect x="12" y="4" width="1" height="1" fill="#ff3050"/><rect x="1" y="5" width="1" height="1" fill="#ff3050"/><rect x="2" y="5" width="2" height="1" fill="#ffffff"/><rect x="4" y="5" width="2" height="1" fill="#2a3cff"/><rect x="6" y="5" width="2" height="1" fill="#ff3050"/><rect x="8" y="5" width="2" height="1" fill="#ffffff"/><rect x="10" y="5" width="2" height="1" fill="#2a3cff"/><rect x="12" y="5" width="1" height="1" fill="#ff3050"/><rect x="0" y="6" width="2" height="1" fill="#ff3050"/><rect x="2" y="6" width="2" height="1" fill="#ffffff"/><rect x="4" y="6" width="2" height="1" fill="#2a3cff"/><rect x="6" y="6" width="2" height="1" fill="#ff3050"/><rect x="8" y="6" width="2" height="1" fill="#ffffff"/><rect x="10" y="6" width="2" height="1" fill="#2a3cff"/><rect x="12" y="6" width="2" height="1" fill="#ff3050"/><rect x="0" y="7" width="3" height="1" fill="#ff3050"/><rect x="3" y="7" width="2" height="1" fill="#ffffff"/><rect x="5" y="7" width="4" height="1" fill="#ff3050"/><rect x="9" y="7" width="2" height="1" fill="#ffffff"/><rect x="11" y="7" width="3" height="1" fill="#ff3050"/><rect x="0" y="8" width="14" height="1" fill="#ff3050"/><rect x="0" y="9" width="14" height="1" fill="#ff3050"/><rect x="0" y="10" width="14" height="1" fill="#ff3050"/><rect x="0" y="11" width="14" height="1" fill="#ff3050"/><rect x="0" y="12" width="2" height="1" fill="#ff3050"/><rect x="3" y="12" width="3" height="1" fill="#ff3050"/><rect x="8" y="12" width="3" height="1" fill="#ff3050"/><rect x="12" y="12" width="2" height="1" fill="#ff3050"/><rect x="0" y="13" width="1" height="1" fill="#ff3050"/><rect x="4" y="13" width="2" height="1" fill="#ff3050"/><rect x="8" y="13" width="2" height="1" fill="#ff3050"/><rect x="13" y="13" width="1" height="1" fill="#ff3050"/></svg></div></div>
+
+<section id="games">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">The games</div>
+      <h2>Three games. One tiny screen.</h2>
+      <p class="lead">Switch it on and the games wait on a neon horizon, each on a live card that plays itself. Slide between them with the
+        arrow keys and press ENTER to play.</p>
+    </div>
+
+    <div class="game">
+      <div class="main"><figure class="device big" style="--glow:rgba(80,160,255,.35)"><button class="play" aria-label="Play NEON"><video muted loop playsinline preload="none" poster="media/pacman-neon.jpg"><source src="media/pacman-neon.webm" type="video/webm"><source src="media/pacman-neon.mp4" type="video/mp4"></video></button><figcaption>NEON</figcaption></figure></div>
+      <div>
+        <span class="tag new">NEW IN 1.4.0</span>
+        <h3>PAC-MAN, rebuilt in light.</h3>
+        <p class="lead">The arcade classic, with neon walls that glow, breathe and flash white when you clear a maze.</p>
+        <ul class="ticks" style="--c: var(--yellow)">
+          <li><b>Real arcade brains.</b> Blinky chases, Pinky cuts you off, Inky flanks and Clyde gets scared up close.</li>
+          <li><b>CLASSIC</b> plays it straight, ghost for ghost.</li>
+          <li><b>NEON</b> adds a dash that goes <i>through</i> ghosts, a MAGNET that pulls in dots, and a FREEZE that turns ghosts to ice you can shatter.</li>
+          <li><b>Three mazes</b>, with a new colour every few levels.</li>
+        </ul>
+        <div class="clips"><figure class="device" style="--glow:rgba(60,120,255,.3)"><button class="play" aria-label="Play CLASSIC"><video muted loop playsinline preload="none" poster="media/pacman-classic.jpg"><source src="media/pacman-classic.webm" type="video/webm"><source src="media/pacman-classic.mp4" type="video/mp4"></video></button><figcaption>CLASSIC</figcaption></figure><figure class="device" style="--glow:rgba(255,80,220,.3)"><button class="play" aria-label="Play A NEW MAZE"><video muted loop playsinline preload="none" poster="media/pacman-mazes.jpg"><source src="media/pacman-mazes.webm" type="video/webm"><source src="media/pacman-mazes.mp4" type="video/mp4"></video></button><figcaption>A NEW MAZE</figcaption></figure><figure class="device" style="--glow:rgba(255,170,40,.3)"><button class="play" aria-label="Play HOME"><video muted loop playsinline preload="none" poster="media/home-screen.jpg"><source src="media/home-screen.webm" type="video/webm"><source src="media/home-screen.mp4" type="video/mp4"></video></button><figcaption>HOME</figcaption></figure></div>
+      </div>
+    </div>
+
+    <div class="game flip">
+      <div class="main"><figure class="device big" style="--glow:rgba(60,200,255,.35)"><button class="play" aria-label="Play MARATHON"><video muted loop playsinline preload="none" poster="media/tetris-marathon.jpg"><source src="media/tetris-marathon.webm" type="video/webm"><source src="media/tetris-marathon.mp4" type="video/mp4"></video></button><figcaption>MARATHON</figcaption></figure></div>
+      <div>
+        <span class="tag cls">MODERN RULES</span>
+        <h3>TETRIS, done properly.</h3>
+        <p class="lead">Modern Tetris the way the rulebook says: pieces turn and kick off walls the standard way, there's a hold slot, and you can see the next five pieces.</p>
+        <ul class="ticks" style="--c: var(--cyan)">
+          <li><b>MARATHON:</b> endless, and it speeds up every 10 lines.</li>
+          <li><b>SPRINT:</b> clear 40 lines as fast as you can.</li>
+          <li><b>ULTRA:</b> score as much as you can in two minutes.</li>
+          <li>T-spins, combos and back-to-back bonuses. Every level has its own colours.</li>
+        </ul>
+        <div class="clips"><figure class="device" style="--glow:rgba(60,200,255,.3)"><button class="play" aria-label="Play SPRINT"><video muted loop playsinline preload="none" poster="media/tetris-sprint.jpg"><source src="media/tetris-sprint.webm" type="video/webm"><source src="media/tetris-sprint.mp4" type="video/mp4"></video></button><figcaption>SPRINT</figcaption></figure><figure class="device" style="--glow:rgba(255,90,160,.3)"><button class="play" aria-label="Play ULTRA"><video muted loop playsinline preload="none" poster="media/tetris-ultra.jpg"><source src="media/tetris-ultra.webm" type="video/webm"><source src="media/tetris-ultra.mp4" type="video/mp4"></video></button><figcaption>ULTRA</figcaption></figure><figure class="device" style="--glow:rgba(80,220,140,.3)"><button class="play" aria-label="Play MARATHON"><video muted loop playsinline preload="none" poster="media/tetris-marathon.jpg"><source src="media/tetris-marathon.webm" type="video/webm"><source src="media/tetris-marathon.mp4" type="video/mp4"></video></button><figcaption>MARATHON</figcaption></figure></div>
+      </div>
+    </div>
+
+    <div class="game">
+      <div class="main"><figure class="device big" style="--glow:rgba(170,90,255,.4)"><button class="play" aria-label="Play THE QUASAR"><video muted loop playsinline preload="none" poster="media/stage5-thequasar.jpg"><source src="media/stage5-thequasar.webm" type="video/webm"><source src="media/stage5-thequasar.mp4" type="video/mp4"></video></button><figcaption>THE QUASAR</figcaption></figure></div>
+      <div>
+        <span class="tag org">THE ORIGINAL</span>
+        <h3>QUASAR, a shoot-'em-up.</h3>
+        <p class="lead">Fly through five stages, each ending in a boss that fills the screen. It has parallax starfields, particle explosions and screen shake.</p>
+        <ul class="ticks" style="--c: var(--purple)">
+          <li><b>Five stages:</b> Frost Belt, Crimson Nebula, Dyson Array, Solar Corona and The Quasar.</li>
+          <li><b>Power-ups:</b> spread shot, laser, homing missiles and a charged beam.</li>
+          <li><b>Chain multiplier</b> for fast kills, and a Nova bomb for emergencies.</li>
+        </ul>
+      </div>
+    </div>
+    <div class="clips five"><figure class="device" style="--glow:rgba(90,200,255,.3)"><button class="play" aria-label="Play FROST BELT"><video muted loop playsinline preload="none" poster="media/stage1-frostbelt.jpg"><source src="media/stage1-frostbelt.webm" type="video/webm"><source src="media/stage1-frostbelt.mp4" type="video/mp4"></video></button><figcaption>FROST BELT</figcaption></figure><figure class="device" style="--glow:rgba(255,60,90,.3)"><button class="play" aria-label="Play CRIMSON NEBULA"><video muted loop playsinline preload="none" poster="media/stage2-crimsonnebula.jpg"><source src="media/stage2-crimsonnebula.webm" type="video/webm"><source src="media/stage2-crimsonnebula.mp4" type="video/mp4"></video></button><figcaption>CRIMSON NEBULA</figcaption></figure><figure class="device" style="--glow:rgba(255,190,60,.3)"><button class="play" aria-label="Play DYSON ARRAY"><video muted loop playsinline preload="none" poster="media/stage3-dysonarray.jpg"><source src="media/stage3-dysonarray.webm" type="video/webm"><source src="media/stage3-dysonarray.mp4" type="video/mp4"></video></button><figcaption>DYSON ARRAY</figcaption></figure><figure class="device" style="--glow:rgba(255,120,40,.3)"><button class="play" aria-label="Play SOLAR CORONA"><video muted loop playsinline preload="none" poster="media/stage4-solarcorona.jpg"><source src="media/stage4-solarcorona.webm" type="video/webm"><source src="media/stage4-solarcorona.mp4" type="video/mp4"></video></button><figcaption>SOLAR CORONA</figcaption></figure><figure class="device" style="--glow:rgba(170,90,255,.3)"><button class="play" aria-label="Play THE QUASAR"><video muted loop playsinline preload="none" poster="media/stage5-thequasar.jpg"><source src="media/stage5-thequasar.webm" type="video/webm"><source src="media/stage5-thequasar.mp4" type="video/mp4"></video></button><figcaption>THE QUASAR</figcaption></figure></div>
+
+    <div class="screens"><figure class="crt"><img src="screenshots/home-pacman.png" width="320" height="240" loading="lazy" alt="The home screen, on the PAC-MAN card"></figure><figure class="crt"><img src="screenshots/pacman-play.png" width="320" height="240" loading="lazy" alt="PAC-MAN: NEON, with the ghosts turned blue"></figure><figure class="crt"><img src="screenshots/pacman-menu.png" width="320" height="240" loading="lazy" alt="PAC-MAN: its menu over a demo game"></figure><figure class="crt"><img src="screenshots/tetris-play.png" width="320" height="240" loading="lazy" alt="TETRIS: Marathon"></figure><figure class="crt"><img src="screenshots/title.png" width="320" height="240" loading="lazy" alt="QUASAR's title screen"></figure><figure class="crt"><img src="screenshots/stage4-solarcorona.png" width="320" height="240" loading="lazy" alt="QUASAR stage 4: Solar Corona, the Helios boss"></figure></div>
+  </div>
+</section>
+
+<section id="specs" style="padding-top:0">
+  <div class="wrap">
+    <div class="stats">
+      <div class="stat" style="--c: var(--orange)"><b>30</b><span>frames a second, synced to the screen</span></div>
+      <div class="stat" style="--c: var(--yellow)"><b>320&times;240</b><span>full-colour pixels, all of them used</span></div>
+      <div class="stat" style="--c: var(--cyan)"><b>3</b><span>games on one home screen</span></div>
+      <div class="stat" style="--c: var(--pink)"><b>0</b><span>lines of wallet code</span></div>
+      <div class="stat" style="--c: var(--purple)"><b>C</b><span>native code, nothing interpreted while you play</span></div>
+      <div class="stat" style="--c: #3ddc84"><b>SAVE</b><span>hold POWER to save any game and carry on later</span></div>
+    </div>
+  </div>
+</section>
+
+<section class="install" id="install">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Install</div>
+      <h2>Five steps. About ten minutes.</h2>
+      <p class="lead">You install QUASAR the same way as any Coldcard update, from a microSD card. Coinkite's own bootloader does the checking and the flashing.</p>
+    </div>
+    <div class="need" aria-label="What you need">
+      <span><svg class="pix" viewBox="0 0 14 18" width="14" height="18" shape-rendering="crispEdges" role="img" aria-label=""><rect x="1" y="0" width="12" height="1" fill="#4a4a66"/><rect x="0" y="1" width="1" height="1" fill="#4a4a66"/><rect x="1" y="1" width="12" height="1" fill="#17171f"/><rect x="13" y="1" width="1" height="1" fill="#4a4a66"/><rect x="0" y="2" width="1" height="1" fill="#4a4a66"/><rect x="1" y="2" width="1" height="1" fill="#17171f"/><rect x="2" y="2" width="10" height="1" fill="#7c7c9c"/><rect x="12" y="2" width="1" height="1" fill="#17171f"/><rect x="13" y="2" width="1" height="1" fill="#4a4a66"/><rect x="0" y="3" width="1" height="1" fill="#4a4a66"/><rect x="1" y="3" width="1" height="1" fill="#17171f"/><rect x="2" y="3" width="1" height="1" fill="#7c7c9c"/><rect x="3" y="3" width="8" height="1" fill="#0d2f66"/><rect x="11" y="3" width="1" height="1" fill="#7c7c9c"/><rect x="12" y="3" width="1" height="1" fill="#17171f"/><rect x="13" y="3" width="1" height="1" fill="#4a4a66"/><rect x="0" y="4" width="1" height="1" fill="#4a4a66"/><rect x="1" y="4" width="1" height="1" fill="#17171f"/><rect x="2" y="4" width="1" height="1" fill="#7c7c9c"/><rect x="3" y="4" width="8" height="1" fill="#0d2f66"/><rect x="11" y="4" width="1" height="1" fill="#7c7c9c"/><rect x="12" y="4" width="1" height="1" fill="#17171f"/><rect x="13" y="4" width="1" height="1" fill="#4a4a66"/><rect x="0" y="5" width="1" height="1" fill="#4a4a66"/><rect x="1" y="5" width="1" height="1" fill="#17171f"/><rect x="2" y="5" width="1" height="1" fill="#7c7c9c"/><rect x="3" y="5" width="2" height="1" fill="#0d2f66"/><rect x="5" y="5" width="1" height="1" fill="#ffd23c"/><rect x="6" y="5" width="2" height="1" fill="#0d2f66"/><rect x="8" y="5" width="1" height="1" fill="#ff3050"/><rect x="9" y="5" width="2" height="1" fill="#0d2f66"/><rect x="11" y="5" width="1" height="1" fill="#7c7c9c"/><rect x="12" y="5" width="1" height="1" fill="#17171f"/><rect x="13" y="5" width="1" height="1" fill="#4a4a66"/><rect x="0" y="6" width="1" height="1" fill="#4a4a66"/><rect x="1" y="6" width="1" height="1" fill="#17171f"/><rect x="2" y="6" width="1" height="1" fill="#7c7c9c"/><rect x="3" y="6" width="8" height="1" fill="#0d2f66"/><rect x="11" y="6" width="1" height="1" fill="#7c7c9c"/><rect x="12" y="6" width="1" height="1" fill="#17171f"/><rect x="13" y="6" width="1" height="1" fill="#4a4a66"/><rect x="0" y="7" width="1" height="1" fill="#4a4a66"/><rect x="1" y="7" width="1" height="1" fill="#17171f"/><rect x="2" y="7" width="10" height="1" fill="#7c7c9c"/><rect x="12" y="7" width="1" height="1" fill="#17171f"/><rect x="13" y="7" width="1" height="1" fill="#4a4a66"/><rect x="0" y="8" width="1" height="1" fill="#4a4a66"/><rect x="1" y="8" width="12" height="1" fill="#17171f"/><rect x="13" y="8" width="1" height="1" fill="#4a4a66"/><rect x="0" y="9" width="1" height="1" fill="#4a4a66"/><rect x="1" y="9" width="1" height="1" fill="#17171f"/><rect x="2" y="9" width="2" height="1" fill="#ff6a13"/><rect x="4" y="9" width="2" height="1" fill="#17171f"/><rect x="6" y="9" width="2" height="1" fill="#26263a"/><rect x="8" y="9" width="2" height="1" fill="#17171f"/><rect x="10" y="9" width="2" height="1" fill="#ff6a13"/><rect x="12" y="9" width="1" height="1" fill="#17171f"/><rect x="13" y="9" width="1" height="1" fill="#4a4a66"/><rect x="0" y="10" width="1" height="1" fill="#4a4a66"/><rect x="1" y="10" width="12" height="1" fill="#17171f"/><rect x="13" y="10" width="1" height="1" fill="#4a4a66"/><rect x="0" y="11" width="1" height="1" fill="#4a4a66"/><rect x="1" y="11" width="1" height="1" fill="#17171f"/><rect x="2" y="11" width="1" height="1" fill="#26263a"/><rect x="3" y="11" width="1" height="1" fill="#17171f"/><rect x="4" y="11" width="1" height="1" fill="#26263a"/><rect x="5" y="11" width="1" height="1" fill="#17171f"/><rect x="6" y="11" width="1" height="1" fill="#26263a"/><rect x="7" y="11" width="1" height="1" fill="#17171f"/><rect x="8" y="11" width="1" height="1" fill="#26263a"/><rect x="9" y="11" width="1" height="1" fill="#17171f"/><rect x="10" y="11" width="1" height="1" fill="#26263a"/><rect x="11" y="11" width="2" height="1" fill="#17171f"/><rect x="13" y="11" width="1" height="1" fill="#4a4a66"/><rect x="0" y="12" width="1" height="1" fill="#4a4a66"/><rect x="1" y="12" width="12" height="1" fill="#17171f"/><rect x="13" y="12" width="1" height="1" fill="#4a4a66"/><rect x="0" y="13" width="1" height="1" fill="#4a4a66"/><rect x="1" y="13" width="1" height="1" fill="#17171f"/><rect x="2" y="13" width="1" height="1" fill="#26263a"/><rect x="3" y="13" width="1" height="1" fill="#17171f"/><rect x="4" y="13" width="1" height="1" fill="#26263a"/><rect x="5" y="13" width="1" height="1" fill="#17171f"/><rect x="6" y="13" width="1" height="1" fill="#26263a"/><rect x="7" y="13" width="1" height="1" fill="#17171f"/><rect x="8" y="13" width="1" height="1" fill="#26263a"/><rect x="9" y="13" width="1" height="1" fill="#17171f"/><rect x="10" y="13" width="1" height="1" fill="#26263a"/><rect x="11" y="13" width="2" height="1" fill="#17171f"/><rect x="13" y="13" width="1" height="1" fill="#4a4a66"/><rect x="0" y="14" width="1" height="1" fill="#4a4a66"/><rect x="1" y="14" width="12" height="1" fill="#17171f"/><rect x="13" y="14" width="1" height="1" fill="#4a4a66"/><rect x="0" y="15" width="1" height="1" fill="#4a4a66"/><rect x="1" y="15" width="2" height="1" fill="#17171f"/><rect x="3" y="15" width="8" height="1" fill="#26263a"/><rect x="11" y="15" width="2" height="1" fill="#17171f"/><rect x="13" y="15" width="1" height="1" fill="#4a4a66"/><rect x="0" y="16" width="1" height="1" fill="#4a4a66"/><rect x="1" y="16" width="12" height="1" fill="#17171f"/><rect x="13" y="16" width="1" height="1" fill="#4a4a66"/><rect x="1" y="17" width="12" height="1" fill="#4a4a66"/></svg> A Coldcard Q</span><span><svg class="pix" viewBox="0 0 12 13" width="12" height="13" shape-rendering="crispEdges" role="img" aria-label=""><rect x="3" y="0" width="9" height="1" fill="#4a4a66"/><rect x="2" y="1" width="1" height="1" fill="#4a4a66"/><rect x="3" y="1" width="2" height="1" fill="#ffd23c"/><rect x="5" y="1" width="1" height="1" fill="#ff6a13"/><rect x="6" y="1" width="2" height="1" fill="#ffd23c"/><rect x="8" y="1" width="1" height="1" fill="#ff6a13"/><rect x="9" y="1" width="2" height="1" fill="#ffd23c"/><rect x="11" y="1" width="1" height="1" fill="#4a4a66"/><rect x="1" y="2" width="2" height="1" fill="#4a4a66"/><rect x="3" y="2" width="2" height="1" fill="#ffd23c"/><rect x="5" y="2" width="1" height="1" fill="#ff6a13"/><rect x="6" y="2" width="2" height="1" fill="#ffd23c"/><rect x="8" y="2" width="1" height="1" fill="#ff6a13"/><rect x="9" y="2" width="2" height="1" fill="#ffd23c"/><rect x="11" y="2" width="1" height="1" fill="#4a4a66"/><rect x="0" y="3" width="1" height="1" fill="#4a4a66"/><rect x="1" y="3" width="10" height="1" fill="#17171f"/><rect x="11" y="3" width="1" height="1" fill="#4a4a66"/><rect x="0" y="4" width="1" height="1" fill="#4a4a66"/><rect x="1" y="4" width="10" height="1" fill="#17171f"/><rect x="11" y="4" width="1" height="1" fill="#4a4a66"/><rect x="0" y="5" width="1" height="1" fill="#4a4a66"/><rect x="1" y="5" width="2" height="1" fill="#17171f"/><rect x="3" y="5" width="6" height="1" fill="#3ddc84"/><rect x="9" y="5" width="2" height="1" fill="#17171f"/><rect x="11" y="5" width="1" height="1" fill="#4a4a66"/><rect x="0" y="6" width="1" height="1" fill="#4a4a66"/><rect x="1" y="6" width="2" height="1" fill="#17171f"/><rect x="3" y="6" width="1" height="1" fill="#3ddc84"/><rect x="4" y="6" width="4" height="1" fill="#17171f"/><rect x="8" y="6" width="1" height="1" fill="#3ddc84"/><rect x="9" y="6" width="2" height="1" fill="#17171f"/><rect x="11" y="6" width="1" height="1" fill="#4a4a66"/><rect x="0" y="7" width="1" height="1" fill="#4a4a66"/><rect x="1" y="7" width="2" height="1" fill="#17171f"/><rect x="3" y="7" width="1" height="1" fill="#3ddc84"/><rect x="4" y="7" width="1" height="1" fill="#17171f"/><rect x="5" y="7" width="2" height="1" fill="#3ddc84"/><rect x="7" y="7" width="1" height="1" fill="#17171f"/><rect x="8" y="7" width="1" height="1" fill="#3ddc84"/><rect x="9" y="7" width="2" height="1" fill="#17171f"/><rect x="11" y="7" width="1" height="1" fill="#4a4a66"/><rect x="0" y="8" width="1" height="1" fill="#4a4a66"/><rect x="1" y="8" width="2" height="1" fill="#17171f"/><rect x="3" y="8" width="1" height="1" fill="#3ddc84"/><rect x="4" y="8" width="4" height="1" fill="#17171f"/><rect x="8" y="8" width="1" height="1" fill="#3ddc84"/><rect x="9" y="8" width="2" height="1" fill="#17171f"/><rect x="11" y="8" width="1" height="1" fill="#4a4a66"/><rect x="0" y="9" width="1" height="1" fill="#4a4a66"/><rect x="1" y="9" width="2" height="1" fill="#17171f"/><rect x="3" y="9" width="6" height="1" fill="#3ddc84"/><rect x="9" y="9" width="2" height="1" fill="#17171f"/><rect x="11" y="9" width="1" height="1" fill="#4a4a66"/><rect x="0" y="10" width="1" height="1" fill="#4a4a66"/><rect x="1" y="10" width="10" height="1" fill="#17171f"/><rect x="11" y="10" width="1" height="1" fill="#4a4a66"/><rect x="0" y="11" width="1" height="1" fill="#4a4a66"/><rect x="1" y="11" width="10" height="1" fill="#17171f"/><rect x="11" y="11" width="1" height="1" fill="#4a4a66"/><rect x="0" y="12" width="12" height="1" fill="#4a4a66"/></svg> A microSD card (two is easier)</span><span>&#128187; A computer</span><span>&#9749; Ten minutes</span>
+    </div>
+    <div class="warn" role="note">
+      <div class="ico">!</div>
+      <div>
+        <p><b>Read this first.</b> The best way to try QUASAR is on a spare Coldcard Q. If yours has ever held real money, set a fresh PIN
+          before you install anything. Never type your real wallet PIN into firmware you haven't checked yourself, on this project or anyone else's.</p>
+        <p>When you install firmware from QUASAR's SYSTEM screen, only ever type your <b>main PIN</b>. A trick PIN there makes the bootloader
+          wipe the seed, just like on the official firmware.</p>
+      </div>
+    </div>
+    <ol class="steps">
+      <li class="step"><div class="n">1</div><div>
+        <h3>Make your way back first.</h3>
+        <p>Download the official Coldcard Q firmware from <a href="https://coldcard.com/downloads">coldcard.com/downloads</a>, put the
+          <code>.dfu</code> file on a microSD card, label it "OFFICIAL" and keep it safe. That card is how you get back to a normal Coldcard.</p></div></li>
+      <li class="step"><div class="n">2</div><div>
+        <h3>Download QUASAR.</h3>
+        <p>Save the firmware file and copy it onto a microSD card.</p>
+        <div class="dl"><a class="btn btn-primary" href="https://github.com/Ak1ra00/cc-q/raw/main/release/quasar-1.4.0-q1.dfu" download>&#9660; quasar-1.4.0-q1.dfu</a><a class="btn btn-ghost" href="https://github.com/Ak1ra00/cc-q/tree/main/release">All releases</a></div>
+        <p class="sha">SHA-256 9efe94b1b1203aca5376c4f00a8db8025c0dcd1a2999a831ea3169ab9ed7e0c4</p></div></li>
+      <li class="step"><div class="n">3</div><div>
+        <h3>Install it like any update.</h3>
+        <p>Put the card in the Coldcard, then go to</p>
+        <p><span class="path">Advanced &rarr; Upgrade &rarr; From MicroSD</span></p>
+        <p>Pick <code>quasar-1.4.0-q1.dfu</code> and confirm. The Coldcard checks the file and flashes it.</p></div></li>
+      <li class="step"><div class="n">4</div><div>
+        <h3>Wait out the warning. It's normal.</h3>
+        <p>Every time it starts, Coinkite's bootloader shows an "unsigned firmware" warning for about 25 seconds, because only Coinkite can sign official firmware.
+          That's the Coldcard working properly, not a bug. Then the arcade appears.</p></div></li>
+      <li class="step"><div class="n">5</div><div>
+        <h3>Play!</h3>
+        <p><kbd class="ar">&#9664;</kbd><kbd class="ar">&#9654;</kbd> pick a game, <kbd>ENTER</kbd> plays it, and holding <kbd>POWER</kbd> saves your game and switches off. The home screen always opens on the last game you played.</p></div></li>
+    </ol>
+    <div class="back">
+      <svg class="pix" viewBox="0 0 12 13" width="60" height="65" shape-rendering="crispEdges" role="img" aria-label="A microSD card"><rect x="3" y="0" width="9" height="1" fill="#4a4a66"/><rect x="2" y="1" width="1" height="1" fill="#4a4a66"/><rect x="3" y="1" width="2" height="1" fill="#ffd23c"/><rect x="5" y="1" width="1" height="1" fill="#ff6a13"/><rect x="6" y="1" width="2" height="1" fill="#ffd23c"/><rect x="8" y="1" width="1" height="1" fill="#ff6a13"/><rect x="9" y="1" width="2" height="1" fill="#ffd23c"/><rect x="11" y="1" width="1" height="1" fill="#4a4a66"/><rect x="1" y="2" width="2" height="1" fill="#4a4a66"/><rect x="3" y="2" width="2" height="1" fill="#ffd23c"/><rect x="5" y="2" width="1" height="1" fill="#ff6a13"/><rect x="6" y="2" width="2" height="1" fill="#ffd23c"/><rect x="8" y="2" width="1" height="1" fill="#ff6a13"/><rect x="9" y="2" width="2" height="1" fill="#ffd23c"/><rect x="11" y="2" width="1" height="1" fill="#4a4a66"/><rect x="0" y="3" width="1" height="1" fill="#4a4a66"/><rect x="1" y="3" width="10" height="1" fill="#17171f"/><rect x="11" y="3" width="1" height="1" fill="#4a4a66"/><rect x="0" y="4" width="1" height="1" fill="#4a4a66"/><rect x="1" y="4" width="10" height="1" fill="#17171f"/><rect x="11" y="4" width="1" height="1" fill="#4a4a66"/><rect x="0" y="5" width="1" height="1" fill="#4a4a66"/><rect x="1" y="5" width="2" height="1" fill="#17171f"/><rect x="3" y="5" width="6" height="1" fill="#3ddc84"/><rect x="9" y="5" width="2" height="1" fill="#17171f"/><rect x="11" y="5" width="1" height="1" fill="#4a4a66"/><rect x="0" y="6" width="1" height="1" fill="#4a4a66"/><rect x="1" y="6" width="2" height="1" fill="#17171f"/><rect x="3" y="6" width="1" height="1" fill="#3ddc84"/><rect x="4" y="6" width="4" height="1" fill="#17171f"/><rect x="8" y="6" width="1" height="1" fill="#3ddc84"/><rect x="9" y="6" width="2" height="1" fill="#17171f"/><rect x="11" y="6" width="1" height="1" fill="#4a4a66"/><rect x="0" y="7" width="1" height="1" fill="#4a4a66"/><rect x="1" y="7" width="2" height="1" fill="#17171f"/><rect x="3" y="7" width="1" height="1" fill="#3ddc84"/><rect x="4" y="7" width="1" height="1" fill="#17171f"/><rect x="5" y="7" width="2" height="1" fill="#3ddc84"/><rect x="7" y="7" width="1" height="1" fill="#17171f"/><rect x="8" y="7" width="1" height="1" fill="#3ddc84"/><rect x="9" y="7" width="2" height="1" fill="#17171f"/><rect x="11" y="7" width="1" height="1" fill="#4a4a66"/><rect x="0" y="8" width="1" height="1" fill="#4a4a66"/><rect x="1" y="8" width="2" height="1" fill="#17171f"/><rect x="3" y="8" width="1" height="1" fill="#3ddc84"/><rect x="4" y="8" width="4" height="1" fill="#17171f"/><rect x="8" y="8" width="1" height="1" fill="#3ddc84"/><rect x="9" y="8" width="2" height="1" fill="#17171f"/><rect x="11" y="8" width="1" height="1" fill="#4a4a66"/><rect x="0" y="9" width="1" height="1" fill="#4a4a66"/><rect x="1" y="9" width="2" height="1" fill="#17171f"/><rect x="3" y="9" width="6" height="1" fill="#3ddc84"/><rect x="9" y="9" width="2" height="1" fill="#17171f"/><rect x="11" y="9" width="1" height="1" fill="#4a4a66"/><rect x="0" y="10" width="1" height="1" fill="#4a4a66"/><rect x="1" y="10" width="10" height="1" fill="#17171f"/><rect x="11" y="10" width="1" height="1" fill="#4a4a66"/><rect x="0" y="11" width="1" height="1" fill="#4a4a66"/><rect x="1" y="11" width="10" height="1" fill="#17171f"/><rect x="11" y="11" width="1" height="1" fill="#4a4a66"/><rect x="0" y="12" width="12" height="1" fill="#4a4a66"/></svg>
+      <div>
+        <h3>Going back to a normal Coldcard</h3>
+        <p>Put your "OFFICIAL" card in. Pick <b>SYSTEM &rarr; INSTALL FIRMWARE</b> on the home screen, or hold <kbd>S</kbd> while you switch on to jump straight there.
+          Choose the official <code>.dfu</code> and enter your main PIN. A couple of minutes later it's a Coldcard again.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="controls" style="padding-top:40px">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Cheat sheet</div>
+      <h2>The controls.</h2>
+    </div>
+    <div class="pads">
+      <div class="pad"><h4>HOME SCREEN</h4><dl>
+        <div><dt><kbd class="ar">&#9664;</kbd><kbd class="ar">&#9654;</kbd></dt><dd>choose a game</dd></div>
+        <div><dt><kbd>ENTER</kbd></dt><dd>play it</dd></div>
+        <div><dt><kbd class="ar">&#9660;</kbd></dt><dd>settings and system</dd></div></dl></div>
+      <div class="pad"><h4>PAC-MAN</h4><dl>
+        <div><dt><kbd class="ar">&#9650;</kbd><kbd class="ar">&#9664;</kbd><kbd class="ar">&#9660;</kbd><kbd class="ar">&#9654;</kbd></dt><dd>steer (or W A S D). Tap early and it turns at the next corner.</dd></div>
+        <div><dt><kbd>SPACE</kbd></dt><dd>dash (NEON)</dd></div>
+        <div><dt><kbd>TAB</kbd></dt><dd>pause</dd></div></dl></div>
+      <div class="pad"><h4>TETRIS</h4><dl>
+        <div><dt><kbd class="ar">&#9664;</kbd><kbd class="ar">&#9654;</kbd></dt><dd>move</dd></div>
+        <div><dt><kbd class="ar">&#9660;</kbd></dt><dd>soft drop</dd></div>
+        <div><dt><kbd>ENTER</kbd></dt><dd>hard drop</dd></div>
+        <div><dt><kbd class="ar">&#9650;</kbd><kbd>Z</kbd></dt><dd>turn either way</dd></div>
+        <div><dt><kbd>C</kbd></dt><dd>hold</dd></div></dl></div>
+      <div class="pad"><h4>QUASAR</h4><dl>
+        <div><dt><kbd class="ar">&#9650;</kbd><kbd class="ar">&#9664;</kbd><kbd class="ar">&#9660;</kbd><kbd class="ar">&#9654;</kbd></dt><dd>fly (or W A S D). The guns fire by themselves.</dd></div>
+        <div><dt><kbd>ENTER</kbd></dt><dd>hold to charge the beam</dd></div>
+        <div><dt><kbd>CANCEL</kbd></dt><dd>Nova bomb</dd></div></dl></div>
+    </div>
+    <p class="all">Everywhere: <kbd>POWER</kbd> tap to pause, hold to save and switch off. <kbd>CANCEL</kbd> on a game's menu goes back home.</p>
+  </div>
+</section>
+
+<section id="faq" style="padding-top:40px">
+  <div class="wrap"><div class="faq">
+    <div class="section-head">
+      <div class="eyebrow">Questions</div>
+      <h2>Things friends ask.</h2>
+    </div>
+    <details><summary>Can it touch my Bitcoin?</summary>
+      <p>QUASAR has no wallet code at all: no seed words, no signing, nothing. It never loads a seed, so even a bug in it can't leak one.
+        The only time it talks to the Coldcard's secure chips is when you install other firmware, and that uses Coinkite's own upgrade
+        code, with the bootloader doing the checking. Still, try it on a spare Coldcard if you can.</p></details>
+    <details><summary>Why is there a warning every time it turns on?</summary>
+      <p>The bootloader only fully trusts firmware signed with Coinkite's own key, and nobody outside Coinkite can do that. Firmware anyone
+        else builds, this one included, is signed with the public developer key. So the bootloader shows a warning for about 25 seconds before it starts.
+        That's the Coldcard doing its job, and no firmware can skip it.</p></details>
+    <details><summary>Can I always go back?</summary>
+      <p>Yes. Use SYSTEM &rarr; INSTALL FIRMWARE with the official <code>.dfu</code> on a microSD card, or hold S at power-on to go straight there.
+        QUASAR never raises the bootloader's "no older firmware" limit, so it never stops you going back to an official release.</p></details>
+    <details><summary>Is this made by Coinkite?</summary>
+      <p>No. It's an independent fan project built on Coinkite's open-source Coldcard firmware and their MicroPython fork. Coinkite
+        doesn't make it, support it or endorse it.</p></details>
+    <details><summary>Do my high scores survive updates?</summary>
+      <p>Yes. Scores, settings and saved games live in small files on the Coldcard's own storage, and new versions read the old files.</p></details>
+    <details><summary>How do I know the file matches the code?</summary>
+      <p>Everything is on <a href="https://github.com/Ak1ra00/cc-q">GitHub</a>. You can build the firmware yourself and compare it with the published file,
+        byte for byte apart from the signature and timestamp. The <a href="https://github.com/Ak1ra00/cc-q/blob/main/SECURITY.md">security notes</a> show how.</p></details>
+  </div></div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="top">
+      <a class="logo" href="#top"><svg class="pix" viewBox="0 0 12 12" width="24" height="24" shape-rendering="crispEdges" role="img" aria-label=""><rect x="4" y="0" width="4" height="1" fill="#ff6a13"/><rect x="2" y="1" width="8" height="1" fill="#ff6a13"/><rect x="1" y="2" width="10" height="1" fill="#ff6a13"/><rect x="1" y="3" width="1" height="1" fill="#ff6a13"/><rect x="2" y="3" width="2" height="1" fill="#ffffff"/><rect x="4" y="3" width="3" height="1" fill="#ff6a13"/><rect x="7" y="3" width="2" height="1" fill="#ffffff"/><rect x="9" y="3" width="2" height="1" fill="#ff6a13"/><rect x="0" y="4" width="1" height="1" fill="#ff6a13"/><rect x="1" y="4" width="2" height="1" fill="#ffffff"/><rect x="3" y="4" width="2" height="1" fill="#2a3cff"/><rect x="5" y="4" width="1" height="1" fill="#ff6a13"/><rect x="6" y="4" width="2" height="1" fill="#ffffff"/><rect x="8" y="4" width="2" height="1" fill="#2a3cff"/><rect x="10" y="4" width="2" height="1" fill="#ff6a13"/><rect x="0" y="5" width="1" height="1" fill="#ff6a13"/><rect x="1" y="5" width="2" height="1" fill="#ffffff"/><rect x="3" y="5" width="2" height="1" fill="#2a3cff"/><rect x="5" y="5" width="1" height="1" fill="#ff6a13"/><rect x="6" y="5" width="2" height="1" fill="#ffffff"/><rect x="8" y="5" width="2" height="1" fill="#2a3cff"/><rect x="10" y="5" width="2" height="1" fill="#ff6a13"/><rect x="0" y="6" width="2" height="1" fill="#ff6a13"/><rect x="2" y="6" width="2" height="1" fill="#ffffff"/><rect x="4" y="6" width="3" height="1" fill="#ff6a13"/><rect x="7" y="6" width="2" height="1" fill="#ffffff"/><rect x="9" y="6" width="3" height="1" fill="#ff6a13"/><rect x="0" y="7" width="12" height="1" fill="#ff6a13"/><rect x="0" y="8" width="12" height="1" fill="#ff6a13"/><rect x="0" y="9" width="12" height="1" fill="#ff6a13"/><rect x="0" y="10" width="2" height="1" fill="#ff6a13"/><rect x="3" y="10" width="3" height="1" fill="#ff6a13"/><rect x="7" y="10" width="3" height="1" fill="#ff6a13"/><rect x="11" y="10" width="1" height="1" fill="#ff6a13"/><rect x="0" y="11" width="1" height="1" fill="#ff6a13"/><rect x="4" y="11" width="1" height="1" fill="#ff6a13"/><rect x="8" y="11" width="1" height="1" fill="#ff6a13"/></svg><span>QUASAR</span></a>
+      <div class="links">
+        <a href="https://github.com/Ak1ra00/cc-q">Source on GitHub</a>
+        <a href="https://github.com/Ak1ra00/cc-q/blob/main/README.md">README</a>
+        <a href="https://github.com/Ak1ra00/cc-q/blob/main/SECURITY.md">Security</a>
+        <a href="https://github.com/Ak1ra00/cc-q/blob/main/LICENSE">License</a>
+      </div>
+      <span class="coin">INSERT COIN <span class="blink">_</span></span>
+    </div>
+    <p>QUASAR is an independent, fan-made project by Ak1ra00. It is not made by, affiliated with or endorsed by Coinkite; Coldcard and
+      Coinkite are their trademarks, and the Coldcard Q in the videos is an illustration, not a photo. The gameplay on its screen is real,
+      recorded from the game's simulator pixel for pixel at 30 frames a second. Tetris is a trademark of The Tetris Company. PAC-MAN is a trademark of
+      Bandai Namco Entertainment Inc. The versions here are independent fan-made tributes, not affiliated with or endorsed by either, and all their art is original.</p>
+  </div>
+</footer>
+
+<dialog id="lightbox" aria-label="Video">
+  <button class="close" aria-label="Close">&#10005;</button>
+  <video muted loop playsinline></video>
+</dialog>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function () {
+  var still = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ------------------------------------------------------------ starfield, drifting like QUASAR's
+  var cv = document.getElementById('stars');
+  if (cv && cv.getContext && !still) {
+    var cx = cv.getContext('2d'), stars = [], w = 0, h = 0, on = true, dpr = Math.min(window.devicePixelRatio || 1, 2);
+    function size() {
+      w = cv.clientWidth; h = cv.clientHeight;
+      cv.width = w * dpr; cv.height = h * dpr; cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      stars = [];
+      for (var i = 0; i < Math.min(240, w * h / 5000); i++) {
+        var z = Math.random();
+        stars.push({ x: Math.random() * w, y: Math.random() * h, z: z, t: Math.random() * 6.28 });
+      }
+    }
+    function frame() {
+      if (on) {
+        cx.clearRect(0, 0, w, h);
+        for (var i = 0; i < stars.length; i++) {
+          var s = stars[i];
+          s.x -= 0.15 + s.z * s.z * 2.2;
+          if (s.x < -4) { s.x = w + 4; s.y = Math.random() * h; }
+          s.t += 0.05;
+          var a = 0.35 + s.z * 0.55 + Math.sin(s.t) * 0.1;
+          cx.fillStyle = s.z > 0.92 ? 'rgba(255,170,110,' + a + ')' : 'rgba(215,220,255,' + a + ')';
+          var sz = s.z > 0.8 ? 2 : 1;
+          cx.fillRect(Math.round(s.x), Math.round(s.y), s.z > 0.95 ? 6 : sz, sz);
+        }
+      }
+      requestAnimationFrame(frame);
+    }
+    size();
+    window.addEventListener('resize', size);
+    new IntersectionObserver(function (e) { on = e[0].isIntersecting; }).observe(cv);
+    requestAnimationFrame(frame);
+  }
+
+  // ------------------------------------------------------------ videos: play only while on screen
+  var vids = document.querySelectorAll('.device video');
+  if ('IntersectionObserver' in window && !still) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) {
+        if (e.isIntersecting) { var p = e.target.play(); if (p && p.catch) p.catch(function () {}); }
+        else e.target.pause();
+      });
+    }, { rootMargin: '120px' });
+    vids.forEach(function (v) { io.observe(v); });
+  }
+
+  // ------------------------------------------------------------ click a device: see it big
+  var box = document.getElementById('lightbox'), big = box.querySelector('video');
+  document.querySelectorAll('.device .play').forEach(function (b) {
+    b.addEventListener('click', function () {
+      var v = b.querySelector('video');
+      if (!box.showModal) { v.paused ? v.play() : v.pause(); return; }
+      var srcs = v.querySelectorAll('source'), pick = srcs[srcs.length - 1].src;
+      for (var i = 0; i < srcs.length; i++) { if (big.canPlayType(srcs[i].type)) { pick = srcs[i].src; break; } }
+      big.src = pick;
+      big.poster = v.poster;
+      box.showModal();
+      var p = big.play(); if (p && p.catch) p.catch(function () {});
+    });
+  });
+  function shut() { big.pause(); big.removeAttribute('src'); big.load(); if (box.open) box.close(); }
+  box.querySelector('.close').addEventListener('click', shut);
+  box.addEventListener('click', function (e) { if (e.target === box) shut(); });
+  box.addEventListener('cancel', function () { big.pause(); });
+
+  // ------------------------------------------------------------ up up down down left right left right B A
+  var code = [38, 38, 40, 40, 37, 39, 37, 39, 66, 65], at = 0, toast = document.getElementById('toast');
+  var ghost = '<svg class="pix" viewBox="0 0 14 14" width="28" height="28" shape-rendering="crispEdges" role="img" aria-label=""><rect x="5" y="0" width="4" height="1" fill="#ff4fd8"/><rect x="3" y="1" width="8" height="1" fill="#ff4fd8"/><rect x="2" y="2" width="10" height="1" fill="#ff4fd8"/><rect x="1" y="3" width="2" height="1" fill="#ff4fd8"/><rect x="3" y="3" width="2" height="1" fill="#ffffff"/><rect x="5" y="3" width="4" height="1" fill="#ff4fd8"/><rect x="9" y="3" width="2" height="1" fill="#ffffff"/><rect x="11" y="3" width="2" height="1" fill="#ff4fd8"/><rect x="1" y="4" width="1" height="1" fill="#ff4fd8"/><rect x="2" y="4" width="4" height="1" fill="#ffffff"/><rect x="6" y="4" width="2" height="1" fill="#ff4fd8"/><rect x="8" y="4" width="4" height="1" fill="#ffffff"/><rect x="12" y="4" width="1" height="1" fill="#ff4fd8"/><rect x="1" y="5" width="1" height="1" fill="#ff4fd8"/><rect x="2" y="5" width="2" height="1" fill="#ffffff"/><rect x="4" y="5" width="2" height="1" fill="#2a3cff"/><rect x="6" y="5" width="2" height="1" fill="#ff4fd8"/><rect x="8" y="5" width="2" height="1" fill="#ffffff"/><rect x="10" y="5" width="2" height="1" fill="#2a3cff"/><rect x="12" y="5" width="1" height="1" fill="#ff4fd8"/><rect x="0" y="6" width="2" height="1" fill="#ff4fd8"/><rect x="2" y="6" width="2" height="1" fill="#ffffff"/><rect x="4" y="6" width="2" height="1" fill="#2a3cff"/><rect x="6" y="6" width="2" height="1" fill="#ff4fd8"/><rect x="8" y="6" width="2" height="1" fill="#ffffff"/><rect x="10" y="6" width="2" height="1" fill="#2a3cff"/><rect x="12" y="6" width="2" height="1" fill="#ff4fd8"/><rect x="0" y="7" width="3" height="1" fill="#ff4fd8"/><rect x="3" y="7" width="2" height="1" fill="#ffffff"/><rect x="5" y="7" width="4" height="1" fill="#ff4fd8"/><rect x="9" y="7" width="2" height="1" fill="#ffffff"/><rect x="11" y="7" width="3" height="1" fill="#ff4fd8"/><rect x="0" y="8" width="14" height="1" fill="#ff4fd8"/><rect x="0" y="9" width="14" height="1" fill="#ff4fd8"/><rect x="0" y="10" width="14" height="1" fill="#ff4fd8"/><rect x="0" y="11" width="14" height="1" fill="#ff4fd8"/><rect x="0" y="12" width="2" height="1" fill="#ff4fd8"/><rect x="3" y="12" width="3" height="1" fill="#ff4fd8"/><rect x="8" y="12" width="3" height="1" fill="#ff4fd8"/><rect x="12" y="12" width="2" height="1" fill="#ff4fd8"/><rect x="0" y="13" width="1" height="1" fill="#ff4fd8"/><rect x="4" y="13" width="2" height="1" fill="#ff4fd8"/><rect x="8" y="13" width="2" height="1" fill="#ff4fd8"/><rect x="13" y="13" width="1" height="1" fill="#ff4fd8"/></svg>';
+  document.addEventListener('keydown', function (e) {
+    at = e.keyCode === code[at] ? at + 1 : (e.keyCode === code[0] ? 1 : 0);
+    if (at < code.length) return;
+    at = 0;
+    toast.textContent = 'CREDIT 01  -  PLAYER ONE, READY!';
+    toast.classList.add('on');
+    setTimeout(function () { toast.classList.remove('on'); }, 3200);
+    if (still) return;
+    ['#ff3050', '#ff4fd8', '#3fe0ff', '#ff9a2e'].forEach(function (c, i) {
+      var d = document.createElement('div');
+      d.className = 'boo';
+      d.style.setProperty('--y', (20 + Math.random() * 60) + 'vh');
+      d.style.animationDelay = (i * 0.25) + 's';
+      d.innerHTML = ghost.replace(/#ff4fd8/g, c);
+      document.body.appendChild(d);
+      setTimeout(function () { d.remove(); }, 5200);
+    });
+  });
+})();
+</script>
+</body>
+</html>

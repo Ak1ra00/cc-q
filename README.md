@@ -8,6 +8,8 @@ this firmware at all — no wallet, no seed words, no secure element access beyo
 bootloader itself requires to install firmware. It is a game console that happens to be shaped like
 a hardware wallet.
 
+**[See it in action, and how to install it, on the website →](https://ak1ra00.github.io/cc-q/)**
+
 <p align="center">
   <img src="docs/showcase/stage1-frostbelt.gif" width="270" alt="Stage 1, Frost Belt: the Glacier Maw boss fight on a Coldcard Q">
   <img src="docs/showcase/stage2-crimsonnebula.gif" width="270" alt="Stage 2, Crimson Nebula: the Hydra boss fight on a Coldcard Q">
