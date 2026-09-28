@@ -191,6 +191,77 @@ section { position: relative; padding: clamp(72px, 10vw, 128px) 0; }
 @media (max-width: 1000px) { .stats { grid-template-columns: repeat(3, 1fr); } }
 @media (max-width: 560px) { .stats { grid-template-columns: repeat(2, 1fr); } .stat b { font-size: 20px; } }
 
+/* ---------------------------------------------------------------- the video, in an arcade cabinet */
+.watch { background: radial-gradient(900px 460px at 50% 8%, rgba(255,79,216,.11), transparent 70%), var(--bg); }
+.watch .section-head { margin: 0 auto 46px; text-align: center; }
+.watch .section-head .lead { margin: 0 auto; }
+.cabinet { position: relative; max-width: 1040px; margin: 0 auto; border-radius: 30px; padding-bottom: clamp(14px, 2.2vw, 24px);
+  background: linear-gradient(170deg, #1e1e2e, #0c0c15 50%, #12121f);
+  box-shadow: 0 50px 90px -40px rgba(0,0,0,.95), 0 0 90px -20px rgba(255,79,216,.3), 0 0 150px -50px rgba(255,106,19,.55); }
+/* a neon rim, orange to cyan */
+.cabinet::before { content: ""; position: absolute; inset: 0; z-index: 2; border-radius: inherit; padding: 2px; pointer-events: none;
+  background: linear-gradient(115deg, var(--orange), var(--pink) 35%, var(--purple) 65%, var(--cyan));
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+.marquee { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 20px 28px 24px;
+  border-radius: 30px 30px 0 0; background: linear-gradient(#241a33, #140f1f); font: 11px/1.4 var(--pixel); color: var(--yellow);
+  text-shadow: 0 0 12px rgba(255,210,60,.6); letter-spacing: .06em; }
+.marquee .rec { color: #ff3050; text-shadow: 0 0 10px #ff3050; }
+.marquee .len { color: var(--muted); text-shadow: none; }
+/* chaser lights along the marquee */
+.marquee::after { content: ""; position: absolute; left: 26px; right: 26px; bottom: 8px; height: 6px;
+  background: radial-gradient(circle, var(--yellow) 1.6px, rgba(255,210,60,.25) 2.4px, transparent 3px) 0 50% / 16px 6px repeat-x;
+  animation: chase .5s steps(2) infinite; }
+@keyframes chase { to { background-position: 16px 50%; } }
+.bezel { margin: 0 clamp(10px, 2.2vw, 24px); padding: clamp(8px, 1.4vw, 14px); border-radius: 18px; background: #040407;
+  box-shadow: inset 0 0 0 1px #2a2a40, inset 0 10px 30px rgba(0,0,0,.9), 0 1px 0 rgba(255,255,255,.05); }
+.screen { position: relative; aspect-ratio: 16 / 9; border-radius: 10px; overflow: hidden; background: #000; }
+.screen iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.yt-start { position: absolute; inset: 0; width: 100%; height: 100%; padding: 0; border: 0; background: #000; cursor: pointer; display: block; color: var(--yellow); }
+.yt-start img { width: 100%; height: 100%; object-fit: cover; filter: brightness(.78) saturate(1.05); transition: transform .6s, filter .3s; }
+.yt-start::after { content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0,0,0,.18) 0 1px, transparent 1px 3px), radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,.5)); }
+.yt-start:hover img, .yt-start:focus-visible img { transform: scale(1.02); filter: brightness(.95); }
+.yt-start:focus-visible { outline: 3px solid var(--yellow); outline-offset: -3px; }
+.yt-start:focus:not(:focus-visible) { outline: none; }
+.press { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: 1; display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.press .disc { width: clamp(64px, 9vw, 96px); aspect-ratio: 1; border-radius: 50%; display: grid; place-items: center; background: rgba(7,7,12,.72);
+  border: 3px solid var(--yellow); backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); animation: ring 1.8s ease-out infinite;
+  box-shadow: 0 0 34px rgba(255,210,60,.45); transition: transform .2s; }
+.press .disc::before { content: ""; margin-left: 12%; border-left: clamp(20px, 2.6vw, 30px) solid var(--yellow);
+  border-top: clamp(13px, 1.7vw, 19px) solid transparent; border-bottom: clamp(13px, 1.7vw, 19px) solid transparent; }
+.press b { font: clamp(9px, 1.1vw, 12px)/1 var(--pixel); letter-spacing: .08em; padding: 9px 12px; border-radius: 6px; background: rgba(7,7,12,.8); }
+.yt-start:hover .disc { transform: scale(1.08); }
+@keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(255,210,60,.5), 0 0 34px rgba(255,210,60,.45); }
+                  100% { box-shadow: 0 0 0 22px rgba(255,210,60,0), 0 0 34px rgba(255,210,60,.45); } }
+.deck { padding: clamp(18px, 2.6vw, 28px) clamp(12px, 2.4vw, 26px) 0; }
+.deck .lbl { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin: 0 2px 14px; font: 10px/1.4 var(--pixel); color: var(--muted); }
+.deck .lbl span { font: 18px/1 var(--term); color: var(--dim); letter-spacing: 0; }
+.levels { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.lvl { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 11px; height: 100%; padding: 11px 12px; border-radius: 12px;
+  background: linear-gradient(#1c1c2b, #13131e); border: 1px solid var(--line); box-shadow: 0 3px 0 #07070b; color: var(--text);
+  font-size: 15px; font-weight: 500; line-height: 1.2; transition: transform .15s, border-color .15s, box-shadow .15s; }
+.lvl:hover { text-decoration: none; border-color: var(--c); transform: translateY(-2px); }
+.lvl:focus-visible { outline: 2px solid var(--c); outline-offset: 2px; }
+.lvl b { min-width: 28px; padding: 7px 6px; border-radius: 6px; background: var(--c); color: #0b0b12; font: 9px/1 var(--pixel); text-align: center; }
+.lvl i { font: 20px/1 var(--term); font-style: normal; color: var(--cyan); }
+.lvl.on { border-color: var(--c); box-shadow: 0 3px 0 #07070b, 0 0 20px -4px var(--c); }
+.yt-note { margin: 22px auto 0; text-align: center; font-size: 14px; color: var(--dim); }
+.watchit { margin-top: 18px; font-size: 16px; color: var(--muted); }
+.watchit a { font-weight: 600; }
+.back .watchit { margin-top: 12px; }
+@media (max-width: 900px) { .levels { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) {
+  .marquee { padding: 16px 18px 22px; font-size: 9px; }
+  .marquee .title { display: none; }
+  .deck .lbl span { font-size: 16px; }
+  .levels { gap: 8px; }
+  /* the time goes under the name, so two columns fit a phone */
+  .lvl { grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 4px 10px; padding: 10px; font-size: 14px; }
+  .lvl b { grid-row: span 2; }
+  .lvl i { grid-column: 2; font-size: 17px; }
+}
+
 /* ---------------------------------------------------------------- install */
 .install { background: linear-gradient(var(--bg2), var(--bg)); }
 .need { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 30px; }
@@ -283,6 +354,7 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
     <a class="logo" href="#top" aria-label="QUASAR, back to the top"><svg class="pix" viewBox="0 0 12 12" width="24" height="24" shape-rendering="crispEdges" role="img" aria-label=""><rect x="4" y="0" width="4" height="1" fill="#ff6a13"/><rect x="2" y="1" width="8" height="1" fill="#ff6a13"/><rect x="1" y="2" width="10" height="1" fill="#ff6a13"/><rect x="1" y="3" width="1" height="1" fill="#ff6a13"/><rect x="2" y="3" width="2" height="1" fill="#ffffff"/><rect x="4" y="3" width="3" height="1" fill="#ff6a13"/><rect x="7" y="3" width="2" height="1" fill="#ffffff"/><rect x="9" y="3" width="2" height="1" fill="#ff6a13"/><rect x="0" y="4" width="1" height="1" fill="#ff6a13"/><rect x="1" y="4" width="2" height="1" fill="#ffffff"/><rect x="3" y="4" width="2" height="1" fill="#2a3cff"/><rect x="5" y="4" width="1" height="1" fill="#ff6a13"/><rect x="6" y="4" width="2" height="1" fill="#ffffff"/><rect x="8" y="4" width="2" height="1" fill="#2a3cff"/><rect x="10" y="4" width="2" height="1" fill="#ff6a13"/><rect x="0" y="5" width="1" height="1" fill="#ff6a13"/><rect x="1" y="5" width="2" height="1" fill="#ffffff"/><rect x="3" y="5" width="2" height="1" fill="#2a3cff"/><rect x="5" y="5" width="1" height="1" fill="#ff6a13"/><rect x="6" y="5" width="2" height="1" fill="#ffffff"/><rect x="8" y="5" width="2" height="1" fill="#2a3cff"/><rect x="10" y="5" width="2" height="1" fill="#ff6a13"/><rect x="0" y="6" width="2" height="1" fill="#ff6a13"/><rect x="2" y="6" width="2" height="1" fill="#ffffff"/><rect x="4" y="6" width="3" height="1" fill="#ff6a13"/><rect x="7" y="6" width="2" height="1" fill="#ffffff"/><rect x="9" y="6" width="3" height="1" fill="#ff6a13"/><rect x="0" y="7" width="12" height="1" fill="#ff6a13"/><rect x="0" y="8" width="12" height="1" fill="#ff6a13"/><rect x="0" y="9" width="12" height="1" fill="#ff6a13"/><rect x="0" y="10" width="2" height="1" fill="#ff6a13"/><rect x="3" y="10" width="3" height="1" fill="#ff6a13"/><rect x="7" y="10" width="3" height="1" fill="#ff6a13"/><rect x="11" y="10" width="1" height="1" fill="#ff6a13"/><rect x="0" y="11" width="1" height="1" fill="#ff6a13"/><rect x="4" y="11" width="1" height="1" fill="#ff6a13"/><rect x="8" y="11" width="1" height="1" fill="#ff6a13"/></svg><span>QUASAR</span></a>
     <nav aria-label="Sections">
       <a href="#what">What is it?</a>
+      <a href="#watch">Video</a>
       <a href="#games">Games</a>
       <a href="#install">Install</a>
       <a href="#faq">FAQ</a>
@@ -305,6 +377,7 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
         screen, into a pocket arcade. It comes with three games, runs at 30 frames a second, and every pixel is drawn in C.</p>
       <div class="cta">
         <a class="btn btn-primary" href="https://github.com/Ak1ra00/cc-q/raw/main/release/quasar-1.4.0-q1.dfu" download><span class="blink">&#9654;</span> Download 1.4.0</a>
+        <a class="btn btn-ghost" href="#watch">&#9654; Watch the video</a>
         <a class="btn btn-ghost" href="#install">How to install</a>
       </div>
       <p class="fine">Not made by or affiliated with Coinkite. You can switch back to the official firmware any time.</p>
@@ -342,6 +415,32 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
     <p class="grownup">The grown-up version: QUASAR is MicroPython's STM32 port for the Coldcard Q, with the games compiled in as a native C module
       and signed with the public developer key. Coinkite's own bootloader still checks and installs it.
       <a href="https://github.com/Ak1ra00/cc-q/blob/main/SECURITY.md">Read the security notes</a>.</p>
+  </div>
+</section>
+
+<section class="watch" id="watch">
+  <div class="wrap">
+    <div class="section-head">
+      <div class="eyebrow">Now showing</div>
+      <h2>The whole thing, in ten minutes.</h2>
+      <p class="lead">What QUASAR is, how it's made and signed, how to install it safely, and how to go back. Narrated, with real gameplay recorded pixel for pixel.</p>
+    </div>
+    <div class="cabinet">
+      <div class="marquee" aria-hidden="true"><span><span class="rec blink">&#9679;</span> NOW SHOWING</span><span class="title">QUASAR: THE MOVIE</span><span class="len">9:50</span></div>
+      <div class="bezel">
+        <div class="screen" id="yt">
+          <button class="yt-start" aria-label="Play the video: QUASAR, a pocket arcade for the Coldcard Q. 9 minutes 50 seconds, plays from YouTube.">
+            <img src="media/video-poster.jpg" width="1280" height="720" loading="lazy" alt="">
+            <span class="press" aria-hidden="true"><span class="disc"></span><b>PRESS START</b></span>
+          </button>
+        </div>
+      </div>
+      <nav class="deck" aria-label="Chapters">
+        <div class="lbl">LEVEL SELECT <span>jump to any part</span></div>
+        <ol class="levels"><li><a class="lvl" style="--c:var(--orange)" href="https://youtu.be/HSSfwHSsa7s?t=0" data-t="0"><b>&#9654;</b><span>Insert coin</span><i>0:00</i></a></li><li><a class="lvl" style="--c:var(--orange)" href="https://youtu.be/HSSfwHSsa7s?t=31" data-t="31"><b>1</b><span>The hardware</span><i>0:31</i></a></li><li><a class="lvl" style="--c:var(--purple)" href="https://youtu.be/HSSfwHSsa7s?t=68" data-t="68"><b>2</b><span>What is firmware?</span><i>1:08</i></a></li><li><a class="lvl" style="--c:var(--pink)" href="https://youtu.be/HSSfwHSsa7s?t=113" data-t="113"><b>3</b><span>What is QUASAR?</span><i>1:53</i></a></li><li><a class="lvl" style="--c:var(--cyan)" href="https://youtu.be/HSSfwHSsa7s?t=161" data-t="161"><b>4</b><span>How it's made</span><i>2:41</i></a></li><li><a class="lvl" style="--c:#ff3050" href="https://youtu.be/HSSfwHSsa7s?t=238" data-t="238"><b>5</b><span>How it's signed</span><i>3:58</i></a></li><li><a class="lvl" style="--c:var(--yellow)" href="https://youtu.be/HSSfwHSsa7s?t=315" data-t="315"><b>&#9733;</b><span>Staying safe</span><i>5:15</i></a></li><li><a class="lvl" style="--c:#3ddc84" href="https://youtu.be/HSSfwHSsa7s?t=370" data-t="370"><b>6</b><span>Install speedrun</span><i>6:10</i></a></li><li><a class="lvl" style="--c:var(--cyan)" href="https://youtu.be/HSSfwHSsa7s?t=455" data-t="455"><b>7</b><span>Let's play</span><i>7:35</i></a></li><li><a class="lvl" style="--c:var(--pink)" href="https://youtu.be/HSSfwHSsa7s?t=532" data-t="532"><b>?</b><span>Going back</span><i>8:52</i></a></li><li><a class="lvl" style="--c:#ff3050" href="https://youtu.be/HSSfwHSsa7s?t=564" data-t="564"><b>&#9632;</b><span>Game over</span><i>9:24</i></a></li></ol>
+      </nav>
+    </div>
+    <p class="yt-note">Plays from YouTube, and nothing loads from YouTube until you press play. <a href="https://youtu.be/HSSfwHSsa7s">Watch it on YouTube</a>.</p>
   </div>
 </section>
 
@@ -426,6 +525,7 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
       <div class="eyebrow">Install</div>
       <h2>Five steps. About ten minutes.</h2>
       <p class="lead">You install QUASAR the same way as any Coldcard update, from a microSD card. Coinkite's own bootloader does the checking and the flashing.</p>
+      <p class="watchit">Rather watch? <a href="https://youtu.be/HSSfwHSsa7s?t=370" data-t="370">&#9654; The install speedrun</a> is at 6:10 in the video.</p>
     </div>
     <div class="need" aria-label="What you need">
       <span><svg class="pix" viewBox="0 0 14 18" width="14" height="18" shape-rendering="crispEdges" role="img" aria-label=""><rect x="1" y="0" width="12" height="1" fill="#4a4a66"/><rect x="0" y="1" width="1" height="1" fill="#4a4a66"/><rect x="1" y="1" width="12" height="1" fill="#17171f"/><rect x="13" y="1" width="1" height="1" fill="#4a4a66"/><rect x="0" y="2" width="1" height="1" fill="#4a4a66"/><rect x="1" y="2" width="1" height="1" fill="#17171f"/><rect x="2" y="2" width="10" height="1" fill="#7c7c9c"/><rect x="12" y="2" width="1" height="1" fill="#17171f"/><rect x="13" y="2" width="1" height="1" fill="#4a4a66"/><rect x="0" y="3" width="1" height="1" fill="#4a4a66"/><rect x="1" y="3" width="1" height="1" fill="#17171f"/><rect x="2" y="3" width="1" height="1" fill="#7c7c9c"/><rect x="3" y="3" width="8" height="1" fill="#0d2f66"/><rect x="11" y="3" width="1" height="1" fill="#7c7c9c"/><rect x="12" y="3" width="1" height="1" fill="#17171f"/><rect x="13" y="3" width="1" height="1" fill="#4a4a66"/><rect x="0" y="4" width="1" height="1" fill="#4a4a66"/><rect x="1" y="4" width="1" height="1" fill="#17171f"/><rect x="2" y="4" width="1" height="1" fill="#7c7c9c"/><rect x="3" y="4" width="8" height="1" fill="#0d2f66"/><rect x="11" y="4" width="1" height="1" fill="#7c7c9c"/><rect x="12" y="4" width="1" height="1" fill="#17171f"/><rect x="13" y="4" width="1" height="1" fill="#4a4a66"/><rect x="0" y="5" width="1" height="1" fill="#4a4a66"/><rect x="1" y="5" width="1" height="1" fill="#17171f"/><rect x="2" y="5" width="1" height="1" fill="#7c7c9c"/><rect x="3" y="5" width="2" height="1" fill="#0d2f66"/><rect x="5" y="5" width="1" height="1" fill="#ffd23c"/><rect x="6" y="5" width="2" height="1" fill="#0d2f66"/><rect x="8" y="5" width="1" height="1" fill="#ff3050"/><rect x="9" y="5" width="2" height="1" fill="#0d2f66"/><rect x="11" y="5" width="1" height="1" fill="#7c7c9c"/><rect x="12" y="5" width="1" height="1" fill="#17171f"/><rect x="13" y="5" width="1" height="1" fill="#4a4a66"/><rect x="0" y="6" width="1" height="1" fill="#4a4a66"/><rect x="1" y="6" width="1" height="1" fill="#17171f"/><rect x="2" y="6" width="1" height="1" fill="#7c7c9c"/><rect x="3" y="6" width="8" height="1" fill="#0d2f66"/><rect x="11" y="6" width="1" height="1" fill="#7c7c9c"/><rect x="12" y="6" width="1" height="1" fill="#17171f"/><rect x="13" y="6" width="1" height="1" fill="#4a4a66"/><rect x="0" y="7" width="1" height="1" fill="#4a4a66"/><rect x="1" y="7" width="1" height="1" fill="#17171f"/><rect x="2" y="7" width="10" height="1" fill="#7c7c9c"/><rect x="12" y="7" width="1" height="1" fill="#17171f"/><rect x="13" y="7" width="1" height="1" fill="#4a4a66"/><rect x="0" y="8" width="1" height="1" fill="#4a4a66"/><rect x="1" y="8" width="12" height="1" fill="#17171f"/><rect x="13" y="8" width="1" height="1" fill="#4a4a66"/><rect x="0" y="9" width="1" height="1" fill="#4a4a66"/><rect x="1" y="9" width="1" height="1" fill="#17171f"/><rect x="2" y="9" width="2" height="1" fill="#ff6a13"/><rect x="4" y="9" width="2" height="1" fill="#17171f"/><rect x="6" y="9" width="2" height="1" fill="#26263a"/><rect x="8" y="9" width="2" height="1" fill="#17171f"/><rect x="10" y="9" width="2" height="1" fill="#ff6a13"/><rect x="12" y="9" width="1" height="1" fill="#17171f"/><rect x="13" y="9" width="1" height="1" fill="#4a4a66"/><rect x="0" y="10" width="1" height="1" fill="#4a4a66"/><rect x="1" y="10" width="12" height="1" fill="#17171f"/><rect x="13" y="10" width="1" height="1" fill="#4a4a66"/><rect x="0" y="11" width="1" height="1" fill="#4a4a66"/><rect x="1" y="11" width="1" height="1" fill="#17171f"/><rect x="2" y="11" width="1" height="1" fill="#26263a"/><rect x="3" y="11" width="1" height="1" fill="#17171f"/><rect x="4" y="11" width="1" height="1" fill="#26263a"/><rect x="5" y="11" width="1" height="1" fill="#17171f"/><rect x="6" y="11" width="1" height="1" fill="#26263a"/><rect x="7" y="11" width="1" height="1" fill="#17171f"/><rect x="8" y="11" width="1" height="1" fill="#26263a"/><rect x="9" y="11" width="1" height="1" fill="#17171f"/><rect x="10" y="11" width="1" height="1" fill="#26263a"/><rect x="11" y="11" width="2" height="1" fill="#17171f"/><rect x="13" y="11" width="1" height="1" fill="#4a4a66"/><rect x="0" y="12" width="1" height="1" fill="#4a4a66"/><rect x="1" y="12" width="12" height="1" fill="#17171f"/><rect x="13" y="12" width="1" height="1" fill="#4a4a66"/><rect x="0" y="13" width="1" height="1" fill="#4a4a66"/><rect x="1" y="13" width="1" height="1" fill="#17171f"/><rect x="2" y="13" width="1" height="1" fill="#26263a"/><rect x="3" y="13" width="1" height="1" fill="#17171f"/><rect x="4" y="13" width="1" height="1" fill="#26263a"/><rect x="5" y="13" width="1" height="1" fill="#17171f"/><rect x="6" y="13" width="1" height="1" fill="#26263a"/><rect x="7" y="13" width="1" height="1" fill="#17171f"/><rect x="8" y="13" width="1" height="1" fill="#26263a"/><rect x="9" y="13" width="1" height="1" fill="#17171f"/><rect x="10" y="13" width="1" height="1" fill="#26263a"/><rect x="11" y="13" width="2" height="1" fill="#17171f"/><rect x="13" y="13" width="1" height="1" fill="#4a4a66"/><rect x="0" y="14" width="1" height="1" fill="#4a4a66"/><rect x="1" y="14" width="12" height="1" fill="#17171f"/><rect x="13" y="14" width="1" height="1" fill="#4a4a66"/><rect x="0" y="15" width="1" height="1" fill="#4a4a66"/><rect x="1" y="15" width="2" height="1" fill="#17171f"/><rect x="3" y="15" width="8" height="1" fill="#26263a"/><rect x="11" y="15" width="2" height="1" fill="#17171f"/><rect x="13" y="15" width="1" height="1" fill="#4a4a66"/><rect x="0" y="16" width="1" height="1" fill="#4a4a66"/><rect x="1" y="16" width="12" height="1" fill="#17171f"/><rect x="13" y="16" width="1" height="1" fill="#4a4a66"/><rect x="1" y="17" width="12" height="1" fill="#4a4a66"/></svg> A Coldcard Q</span><span><svg class="pix" viewBox="0 0 12 13" width="12" height="13" shape-rendering="crispEdges" role="img" aria-label=""><rect x="3" y="0" width="9" height="1" fill="#4a4a66"/><rect x="2" y="1" width="1" height="1" fill="#4a4a66"/><rect x="3" y="1" width="2" height="1" fill="#ffd23c"/><rect x="5" y="1" width="1" height="1" fill="#ff6a13"/><rect x="6" y="1" width="2" height="1" fill="#ffd23c"/><rect x="8" y="1" width="1" height="1" fill="#ff6a13"/><rect x="9" y="1" width="2" height="1" fill="#ffd23c"/><rect x="11" y="1" width="1" height="1" fill="#4a4a66"/><rect x="1" y="2" width="2" height="1" fill="#4a4a66"/><rect x="3" y="2" width="2" height="1" fill="#ffd23c"/><rect x="5" y="2" width="1" height="1" fill="#ff6a13"/><rect x="6" y="2" width="2" height="1" fill="#ffd23c"/><rect x="8" y="2" width="1" height="1" fill="#ff6a13"/><rect x="9" y="2" width="2" height="1" fill="#ffd23c"/><rect x="11" y="2" width="1" height="1" fill="#4a4a66"/><rect x="0" y="3" width="1" height="1" fill="#4a4a66"/><rect x="1" y="3" width="10" height="1" fill="#17171f"/><rect x="11" y="3" width="1" height="1" fill="#4a4a66"/><rect x="0" y="4" width="1" height="1" fill="#4a4a66"/><rect x="1" y="4" width="10" height="1" fill="#17171f"/><rect x="11" y="4" width="1" height="1" fill="#4a4a66"/><rect x="0" y="5" width="1" height="1" fill="#4a4a66"/><rect x="1" y="5" width="2" height="1" fill="#17171f"/><rect x="3" y="5" width="6" height="1" fill="#3ddc84"/><rect x="9" y="5" width="2" height="1" fill="#17171f"/><rect x="11" y="5" width="1" height="1" fill="#4a4a66"/><rect x="0" y="6" width="1" height="1" fill="#4a4a66"/><rect x="1" y="6" width="2" height="1" fill="#17171f"/><rect x="3" y="6" width="1" height="1" fill="#3ddc84"/><rect x="4" y="6" width="4" height="1" fill="#17171f"/><rect x="8" y="6" width="1" height="1" fill="#3ddc84"/><rect x="9" y="6" width="2" height="1" fill="#17171f"/><rect x="11" y="6" width="1" height="1" fill="#4a4a66"/><rect x="0" y="7" width="1" height="1" fill="#4a4a66"/><rect x="1" y="7" width="2" height="1" fill="#17171f"/><rect x="3" y="7" width="1" height="1" fill="#3ddc84"/><rect x="4" y="7" width="1" height="1" fill="#17171f"/><rect x="5" y="7" width="2" height="1" fill="#3ddc84"/><rect x="7" y="7" width="1" height="1" fill="#17171f"/><rect x="8" y="7" width="1" height="1" fill="#3ddc84"/><rect x="9" y="7" width="2" height="1" fill="#17171f"/><rect x="11" y="7" width="1" height="1" fill="#4a4a66"/><rect x="0" y="8" width="1" height="1" fill="#4a4a66"/><rect x="1" y="8" width="2" height="1" fill="#17171f"/><rect x="3" y="8" width="1" height="1" fill="#3ddc84"/><rect x="4" y="8" width="4" height="1" fill="#17171f"/><rect x="8" y="8" width="1" height="1" fill="#3ddc84"/><rect x="9" y="8" width="2" height="1" fill="#17171f"/><rect x="11" y="8" width="1" height="1" fill="#4a4a66"/><rect x="0" y="9" width="1" height="1" fill="#4a4a66"/><rect x="1" y="9" width="2" height="1" fill="#17171f"/><rect x="3" y="9" width="6" height="1" fill="#3ddc84"/><rect x="9" y="9" width="2" height="1" fill="#17171f"/><rect x="11" y="9" width="1" height="1" fill="#4a4a66"/><rect x="0" y="10" width="1" height="1" fill="#4a4a66"/><rect x="1" y="10" width="10" height="1" fill="#17171f"/><rect x="11" y="10" width="1" height="1" fill="#4a4a66"/><rect x="0" y="11" width="1" height="1" fill="#4a4a66"/><rect x="1" y="11" width="10" height="1" fill="#17171f"/><rect x="11" y="11" width="1" height="1" fill="#4a4a66"/><rect x="0" y="12" width="12" height="1" fill="#4a4a66"/></svg> A microSD card (two is easier)</span><span>&#128187; A computer</span><span>&#9749; Ten minutes</span>
@@ -468,6 +568,7 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
         <h3>Going back to a normal Coldcard</h3>
         <p>Put your "OFFICIAL" card in. Pick <b>SYSTEM &rarr; INSTALL FIRMWARE</b> on the home screen, or hold <kbd>S</kbd> while you switch on to jump straight there.
           Choose the official <code>.dfu</code> and enter your main PIN. A couple of minutes later it's a Coldcard again.</p>
+        <p class="watchit"><a href="https://youtu.be/HSSfwHSsa7s?t=532" data-t="532">&#9654; Watch it</a> at 8:52 in the video.</p>
       </div>
     </div>
   </div>
@@ -681,6 +782,37 @@ dialog .close { position: fixed; top: 18px; right: 22px; font: 12px var(--pixel)
       d.innerHTML = ghost.replace(/#ff4fd8/g, c);
       document.body.appendChild(d);
       setTimeout(function () { d.remove(); }, 5200);
+    });
+  });
+
+  // ------------------------------------------------------------ the video: a still until pressed, then YouTube's player
+  var yt = document.getElementById('yt');
+  function ytPlay(t) {
+    if (!yt) return;
+    var f = yt.querySelector('iframe');
+    if (!f) {
+      f = document.createElement('iframe');
+      f.title = 'QUASAR: a pocket arcade for the Coldcard Q (video)';
+      f.allow = 'accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share';
+      f.allowFullscreen = true;
+      f.referrerPolicy = 'strict-origin-when-cross-origin';
+      yt.textContent = '';
+      yt.appendChild(f);
+    }
+    f.src = 'https://www.youtube-nocookie.com/embed/HSSfwHSsa7s?autoplay=1&rel=0&playsinline=1' + (t ? '&start=' + t : '');
+    f.focus({ preventScroll: true });
+  }
+  if (yt) yt.querySelector('.yt-start').addEventListener('click', function () { ytPlay(0); });
+  var lvls = document.querySelectorAll('.lvl');
+  document.querySelectorAll('a[data-t]').forEach(function (a) {
+    a.addEventListener('click', function (e) {
+      if (!yt || e.ctrlKey || e.metaKey || e.shiftKey) return;
+      e.preventDefault();
+      var t = +a.getAttribute('data-t');
+      lvls.forEach(function (l) { l.classList.toggle('on', +l.getAttribute('data-t') === t); });
+      var r = yt.getBoundingClientRect();
+      if (r.top < 64 || r.bottom > window.innerHeight) yt.scrollIntoView({ behavior: still ? 'auto' : 'smooth', block: 'center' });
+      ytPlay(t);
     });
   });
 })();
